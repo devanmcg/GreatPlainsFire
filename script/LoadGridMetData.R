@@ -20,14 +20,11 @@ elements = c(
 
 params <- filter(param_meta$gridmet, description %in% elements )$common.name
 
-test_fires <- 
+fires_LongLat <- 
   GP_WF %>%
     slice(1:5) %>%
       st_centroid() %>% 
       st_transform(4326)
-
-days_range = seq(-3, 3, 1)
-year_range = seq(1980, 2010, 1)
 
 # Download 40 years of historical weather data from each fire location
 
@@ -35,19 +32,15 @@ year_range = seq(1980, 2010, 1)
 HistWx <- tibble()  
 
 begin = Sys.time()
-for(i in 1:length(test_fires$Incid_Name)){
+for(i in 1:length(fires_LongLat$Incid_Name)){
   d <-  
-    test_fires %>%
+    fires_LongLat %>%
     slice(i) 
   for(p in 1:length(params)){
       beepr::beep_on_error(
         climateR::getGridMET(
           AOI = d, 
           param = params[p],
-          # startDate = paste0(year_range[y], '-', 
-          #                    format(d$Ig_Date - 3, '%m-%d')), 
-          # endDate = paste0(year_range[y], '-', 
-          #                  format(d$Ig_Date + 3, '%m-%d')) 
           startDate = '1980-01-01', 
           endDate = '2020-12-31'
             ))  %>% 
@@ -58,4 +51,14 @@ for(i in 1:length(test_fires$Incid_Name)){
           bind_rows(HistWx) -> HistWx 
   } ; closeAllConnections()
   } ; beepr::beep() ; Sys.time() - begin
-}
+      }
+
+# Determine 'normal' weather from 
+
+days_range = seq(-3, 3, 1)
+year_range = seq(1980, 2010, 1)
+
+startDate = paste0(year_range[y], '-', 
+                    format(d$Ig_Date - 3, '%m-%d'))
+endDate = paste0(year_range[y], '-', 
+                  format(d$Ig_Date + 3, '%m-%d')) 
