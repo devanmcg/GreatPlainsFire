@@ -1,0 +1,200 @@
+---
+title: Weather anomalies associated with wildfires in the Great Plains
+subtitle: Preliminary analysis
+date: '`r Sys.Date()`'
+author: DAM
+output:
+  html_document:
+    keep_md: false
+    toc: true
+    toc_float: true
+    theme: united
+    highlight: tango
+---
+
+```{r setup, echo=FALSE, warning=FALSE, message = FALSE, results='hide'}
+knitr::opts_chunk$set(message = FALSE, warning=FALSE, 
+               echo=FALSE, eval=TRUE) #, fig.path='figures/', dev=c('png', 'pdf')) 
+
+pacman::p_load(tidyverse, sf, lubridate, grid)
+options(dplyr.summarise.inform = FALSE)
+source('https://raw.githubusercontent.com/devanmcg/rangeR/master/R/CustomGGplotThemes.R')
+```
+
+```{r data_loading}
+wd =  "C:/Users/devan.mcgranahan/GithubProjects/GreatPlainsFire"
+# GIS layers
+  load(paste0(wd, './gis/Robjects/us_sf.Rdata'))
+  load(paste0(wd, '/gis/Robjects/gp_l3.Rdata'))
+  load(paste0(wd, '/gis/Robjects/GP_WF.Rdata'))
+  load("C:/Users/devan.mcgranahan/GithubProjects/FireWeather/mapping/data/region_states.Rdata")
+
+# weather data 
+  load(paste0(wd, '/data/HistoricalWeather/NWGP_top_20.Rdata'))
+  load(paste0(wd, '/data/PrelimAnalysis/FireWeekMeans.Rdata'))
+  load(paste0(wd, '/data/PrelimAnalysis/FireEventWx.Rdata'))
+```
+
+# Main take-aways 
+
+In a preliminary anaylsis of 20 wildfires in the Northern Great Plains, several weather variables showed substantial departures (*anomalies*) from the historical range of these values (*normal*) for the week in which the fires occurred: 
+
+* Vapor Pressure Deficit averaged 2.4 standard deviations above normal
+* Potential Evapotranspiration averaged 2.3 standard deviations above normal
+* Relative humidity averaged 1.7 standard deviations below normal 
+* NFDRS products BI and ERC averaged 1.8 and 2.0 above normal, respectively
+
+# Location of fires 
+
+The preliminary analysis is limited to the 20 largest fires in the MTBS database from the Northwestern Great Plains EPA Level III ecoregion: 
+
+```{r incident_map}
+fires <- 
+  NWGP_top_20 %>%
+  group_by(incident) %>%
+  slice(1) %>%
+  st_as_sf(coords = c("lon", "lat"), 
+           crs = 4326) %>%
+    st_transform(26915)
+
+
+inset_gg <-
+  ggplot() + theme_map(14) +
+    geom_sf(data = us_sf, 
+            fill = "lightgrey") + 
+    geom_sf(data = gp_l3,
+            fill = "darkblue", color = NA) + 
+    geom_sf(data = gp_l3 %>%
+                    filter(US_L3NAME == "Northwestern Great Plains"), 
+            fill = "lightblue") 
+
+main_gg <-
+  ggplot() + theme_map(14) +
+    geom_sf(data = gp_l3 %>%
+                    filter(US_L3NAME == "Northwestern Great Plains"), 
+            fill = "lightblue") + 
+    geom_sf(data = region_states, fill = NA) +
+    geom_sf(data = fires, 
+            pch=21, 
+            size = 4, stroke = 1.25,
+            fill = "darkblue", 
+            color = 'white')
+
+grid.newpage() 
+main <- viewport(width = 1, height = 1, x = 0.5, y = 0.5) 
+inset <- viewport(width = 0.5, height = 0.5, x = 0.2, y = 0.25)
+print(main_gg, vp = main)
+print(inset_gg, vp = inset)
+# dev.off() 
+```
+
+# Day-of conditions relative to 'normal' 
+
+## Methods 
+
+1. Determine centroid of each perimeter
+2. Define a "weather week" as three days prior to ignition and three days after
+3. Fetch historical weather data for the week, 1980-2020, from gridMET data
+4. Calculate mean for each variable for each annual weather week 
+5. Plot day-of conditions relative to distribution of historical values (1980-2020)
+
+## Results
+
+In most of the 20 fires, several variables had consistent relationships relative to 'normal' values: 
+
+* Vapor Pressure Deficit (VPD) appeared the highest on the day of ignition relative to median values
+* Aside from 5 fires with apparently no Burn Index data, BI tended to be higher than normal on days of ignition
+
+
+```{r incident_histories, fig.height = 12}
+ggplot() + theme_bw(16) +
+  # geom_violin(data = FireWeekMeans %>%
+  #                     filter(param == "vpd"),  
+  #             aes(x = incident, 
+  #                 y = Mean), 
+  #             draw_quantiles = c(0.15, 0.50, 0.85), 
+  #             fill = "lightblue", alpha = 0.5) +
+  geom_boxplot(data = FireWeekMeans, 
+               aes(x = incident,
+                   y = Mean),
+               outlier.shape = NA, 
+               fill = "lightblue", alpha = 0.5) +
+  geom_point(data = FireEventWx, 
+             aes(x = incident, 
+                 y = value), 
+             pch = 21, fill = "blue", 
+             col = "white", stroke = 1.1, size = 4) +
+  labs(y = '') +
+  coord_flip() +
+  facet_wrap(~param, scales = 'free') + 
+  theme(panel.grid.major.y = element_blank(), 
+        axis.text.y = element_blank())
+```
+
+Variables include 
+
+| gridMET code     | Weather variable                        |
+|:-----------------|:----------------------------------------| 
+| `burn_index`     | Fire behavior (NFRDS)                   |
+| `energy_release` | Energy Release Component (NFRDS)        |
+| `pet_grass`      | Potential Evapotranspiration            |
+| `prcp`           | Daily rainfall                          |
+| `rhmin`          | Lowest RH for the day                   |
+| `shum`           | Daily mean specific humidity            |
+| `srad`           | Daily mean surface shortwave radiation  |
+| `tmax`           | Daily maximum air temperature (dry bulb)|
+| `vpd`            | Vapor Pressure Deficit                  |
+| `wind_vel`       | Daily mean wind speed                   |
+
+# Trends in anomalies 
+
+Here I've calculated the anomaly for each variable as 
+
+$$ \frac{'Day~of'~value - median}{standard~deviation} $$
+
+This graph summarizes departures of day-of-ignition values from median values, with departure expressed as standard deviations away from the median value.  
+The data combine the median and 95% confidence interval of departures for all 20 fires. 
+
+```{r incident_anomalies}
+FireWeekMeans %>%
+  group_by(incident, param) %>%
+  summarize(Median = median(Mean, na.rm = TRUE), 
+            SD = sd(Mean, na.rm = TRUE)) %>%
+  ungroup() %>%
+  full_join(select(FireEventWx, date, incident, param, value)) %>%
+  mutate(value = case_when(
+    param == "burn_index" & value <= 0.001 ~ NA_real_, 
+    TRUE ~ value
+  )) %>%
+  mutate(anomaly = (value - Median) / SD ) %>%
+  group_by(param) %>%
+  summarize(lwr = quantile(anomaly, probs = 0.025, na.rm = TRUE), 
+            median = quantile(anomaly, 0.50, na.rm = TRUE), 
+            upr = quantile(anomaly, 0.975, na.rm = TRUE)) %>%
+  ggplot() + theme_bw(14) + 
+  geom_vline(xintercept = 0) + 
+  geom_errorbarh(aes(y = param,
+                     xmin = lwr, 
+                     xmax = upr), 
+                 color = "darkblue", 
+                 height = 0.25, size = 1) +
+  geom_point(aes(x = median, 
+                 y = param), 
+             pch = 21, size = 4, stroke = 1.1,
+             col = "darkblue", fill = 'lightblue') + 
+  labs(y = "Weather parameter", 
+       x = "Standard deviations from median") + 
+  theme(panel.grid.major.y = element_blank())
+```
+
+This can be interpreted as the median vapor pressure deficit for these 20 fires was 2.5 standard deviations above normal for the week in which the fire occurred. 
+The variable with the next greatest anomaly was PET. 
+RH had less of an anomaly than might be expected. 
+Of the two NFRDS products included here, BI had a consistently high anomaly and ERC was not signficantly different than normal. 
+
+# Next steps 
+
+* Expand geographic scope to entire Great Plains region (Dark blue in map)
+* Statistical models to identify variable or combination of variables with most consistent anomalies
+* Identify seasonal patterns in anomalies 
+* Identify spatial and temporal changes in the seasonality, frequency, magnitude, and duration of anomalies

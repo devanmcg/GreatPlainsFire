@@ -1,0 +1,1 @@
+gdal_translate -co compress=lzw -co tiled=yes -co bigtiff=yes /vsicurl/http://rangeland.ntsg.umt.edu/data/rap/rap-vegetation-cover/v2/vegetation-cover-v2-2000.tif -projwin -106.67 48.43 -102.19 45.1 S:\DevanMcG\GIS\SpatialData\RAP\MonDak2000.tif
