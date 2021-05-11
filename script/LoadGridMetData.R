@@ -22,7 +22,7 @@ params <- filter(param_meta$gridmet, description %in% elements )$common.name
 
 fires_LongLat <- 
   GP_WF %>%
-    slice(1:5) %>%
+    # slice(1:5) %>%
       st_centroid() %>% 
       st_transform(4326)
 
