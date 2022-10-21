@@ -1,3 +1,7 @@
+pacman::p_load(tidyverse, sf)
+source('https://raw.githubusercontent.com/devanmcg/rangeR/master/R/CustomGGplotThemes.R')
+load('./gis/Robjects/mapping.Rdata') 
+
 epa <- read_sf('S:/DevanMcG/GIS/SpatialData/US/EPAecoregions/L3', 
                'us_eco_l3_state_boundaries')
 aea <- st_crs(epa)
@@ -105,13 +109,19 @@ ggplot( ) + theme_map(14) +
   scale_fill_manual(name = 'Level 2 ecoregion', 
                     values = pal[c(5, 15, 25, 35)])  
 
-st_union(gp_l2) %>%
-  st_buffer(-10000) %>%
-  st_sample(100, 
-            type = "regular", 
-            exact = TRUE, 
-            by_polygon = TRUE) %>%
-  st_sf() %>%
+GP_Wx_SamplePoints <-
+  st_union(gp_l2) %>%
+    st_buffer(-8000) %>%
+    st_sample(100, 
+              type = "regular", 
+              exact = TRUE, 
+              by_polygon = TRUE) %>%
+    st_sf()  %>% 
+  st_join(mapping$gp_l3)
+
+# save(GP_Wx_SamplePoints, file = './gis/Robjects/GP_Wx_SamplePoints.Rdata')
+
+GP_Wx_SamplePoints %>%
   ggplot() + theme_map() +
   geom_sf(data = mapping$gp_l2, 
                          aes(fill = L2), 
