@@ -1,0 +1,110 @@
+---
+title: Figures for NAPC talk
+output:
+  html_document:
+    keep_md: false
+    theme: united
+    highlight: tango
+---
+  
+```{r setup, echo=FALSE, warning=FALSE, message = FALSE, results='hide'}
+knitr::opts_chunk$set(message = FALSE, warning=FALSE, 
+                      echo=FALSE, eval=TRUE, fig.path='C:/Users/devan.mcgranahan/GithubProjects/GreatPlainsFire/SpringSummerSeverity/talk/figs/', dev=c('png', 'pdf')) 
+# Packages 
+  pacman::p_load(tidyverse, sf, grid, gridExtra)
+  pacman::p_load_gh('devanmcg/wesanderson')
+# Data 
+  # regional map data
+    load('C:/Users/devan.mcgranahan/GithubProjects/SpatialFireBehavior/paper/figures/mapping.Rdata')
+  # study data
+    cgrec_gpkg = 'C:/Users/devan.mcgranahan/GithubProjects/GreatPlainsFire/SpringSummerSeverity/gis/boundaries/CGREC_PBG_26914.gpkg'
+```
+
+
+```{r region_map, fig.width=8, eval = FALSE}
+mapping$nd_l3 <- mapping$nd_l3 %>% st_simplify(dTolerance = 1000)
+mapping$gp_l1 <- mapping$gp_l1 %>% st_simplify(dTolerance = 10000)
+
+region_map <-
+  ggplot() + theme_void(24)  +
+  geom_sf(data = mapping$us, 
+          fill = 'lightgrey', 
+          color = NA)+ 
+    geom_sf(data = mapping$gp_l1, 
+            fill = wes_palettes$DeadLiveLight[1]) +
+    geom_sf(data = mapping$nd,
+            fill = wes_palettes$DeadLiveLight[2], 
+            color = "darkgrey") +
+    geom_sf(data = mapping$us, 
+            fill = NA, 
+            color = "white")
+
+state_map <-
+  ggplot() + theme_void(30)  +
+    geom_sf(data = mapping$nd,
+            fill = 'NA', 
+            color = "darkgrey") + 
+    geom_sf(data = filter(mapping$nd_l3,
+                          L3 != 'Northwestern Great Plains'), 
+            fill = wes_palettes$DeadLiveLight[1], 
+            show.legend = FALSE) +
+    geom_sf_label(data = filter(mapping$nd_l3,
+                                L3 != 'Northwestern Great Plains'),
+                  aes(label = L3), 
+                  size = 6) +
+    geom_sf(data = filter(mapping$pts, 
+                          name != "Hettinger REC"), 
+            aes(shape = feature), 
+            size = 4,
+            show.legend = FALSE) +
+    scale_shape_manual(values = c(16, 16, 17)) +
+    geom_sf_text(data = filter(mapping$pts, 
+                               name != "Hettinger REC"), 
+                 aes(label = name), 
+                  size = 6, 
+                 fontface = c("bold", 'bold', 'italic'),
+                 nudge_y = c(20000, 20000, -20000), 
+                 nudge_x = c(-35000, 0, -15000),
+            show.legend = FALSE) 
+
+v1<-viewport(width = 1, height = 1, x = 0.5, y = 0.5) #plot area for the main map
+v2<-viewport(width = 0.45, height = 0.45, x = 0.71, y = 0.75) #plot area for the inset map
+print(state_map,vp=v1) 
+print(region_map,vp=v2)
+```
+
+```{r BarkerBurns}
+  # Fire mapping 
+
+
+ # st_layers(cgrec_gpkg ) 
+  
+  pastures <- st_read(cgrec_gpkg, 'Pastures') 
+  patches <- st_read(cgrec_gpkg, 'PasturePatches') 
+
+  fires <- st_read(cgrec_gpkg, 'FirePerimeters') %>%
+              mutate(Year = as.factor(Year))
+
+    ggplot() + theme_void() +
+      geom_sf(data = filter(fires, unit == 'Barker'), 
+      aes(fill = Year, 
+          alpha = Season)) +
+      geom_sf(data = filter(patches, Unit == 'Barker'), 
+              fill = NA, 
+              color = 'black', 
+              lty = 2, 
+              size = 1) + 
+      geom_sf(data = filter(pastures, Unit == 'Barker'), 
+              fill = NA, 
+              color = 'black', 
+              lty = 1, 
+              size = 2) +
+      geom_sf_text(data = filter(fires, unit == 'Barker'), 
+                   aes(label = Year), 
+                   nudge_y = 50) +
+      geom_sf_text(data = filter(fires, unit == 'Barker'), 
+                   aes(label = substr(Season, 1, 3)), 
+                   nudge_y = -50) +
+      scale_alpha_manual(values = c(0.25, 0.8)) + 
+      theme(legend.position = 'none')
+```
