@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.23 (MiKTeX 21.7) (preloaded format=pdflatex 2022.6.15)  25 JUN 2023 14:58
+This is pdfTeX, Version 3.141592653-2.6-1.40.23 (MiKTeX 21.7) (preloaded format=pdflatex 2022.6.15)  26 JUN 2023 07:11
 entering extended mode
 **./NAPC2023.tex
 (NAPC2023.tex
@@ -1089,7 +1089,7 @@ Package: pgfplotsthemetol 2017/01/23 PGFplots colors based on Paul Tol's SRON t
 echnical note
 )
 LaTeX Font Info:    Trying to load font information for OT1+FiraSans-OsF on inp
-ut line 42.
+ut line 43.
 
 (C:\Users\devan.mcgranahan\AppData\Roaming\MiKTeX\tex/latex/fira\ot1firasans-os
 f.fd
@@ -1099,9 +1099,9 @@ s-OsF.
 LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/m/n' in size <10.95> not avail
 able
 (Font)              Font shape `OT1/FiraSans-OsF/regular/n' tried instead on in
-put line 42.
+put line 43.
 LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/regular/n' will be
-(Font)              scaled to size 10.95pt on input line 42.
+(Font)              scaled to size 10.95pt on input line 43.
  (C:\Program Files\MiKTeX\tex/latex/l3backend\l3backend-pdftex.def
 File: l3backend-pdftex.def 2021-07-12 L3 backend support: PDF output (pdfTeX)
 \l__color_backend_stack_int=\count365
@@ -1110,24 +1110,24 @@ File: l3backend-pdftex.def 2021-07-12 L3 backend support: PDF output (pdfTeX)
 (NAPC2023.aux)
 \openout1 = `NAPC2023.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 42.
-LaTeX Font Info:    ... okay on input line 42.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 42.
-LaTeX Font Info:    ... okay on input line 42.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 42.
-LaTeX Font Info:    ... okay on input line 42.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 42.
-LaTeX Font Info:    ... okay on input line 42.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 42.
-LaTeX Font Info:    ... okay on input line 42.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 42.
-LaTeX Font Info:    ... okay on input line 42.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 42.
-LaTeX Font Info:    ... okay on input line 42.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 42.
-LaTeX Font Info:    ... okay on input line 42.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 42.
-LaTeX Font Info:    ... okay on input line 42.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 43.
+LaTeX Font Info:    ... okay on input line 43.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 43.
+LaTeX Font Info:    ... okay on input line 43.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 43.
+LaTeX Font Info:    ... okay on input line 43.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 43.
+LaTeX Font Info:    ... okay on input line 43.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 43.
+LaTeX Font Info:    ... okay on input line 43.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 43.
+LaTeX Font Info:    ... okay on input line 43.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 43.
+LaTeX Font Info:    ... okay on input line 43.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 43.
+LaTeX Font Info:    ... okay on input line 43.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 43.
+LaTeX Font Info:    ... okay on input line 43.
 
 *geometry* driver: auto-detecting
 *geometry* detected driver: pdftex
@@ -1184,7 +1184,7 @@ Package epstopdf-base Info: Redefining graphics rule for `.eps' on input line 4
 (C:\Program Files\MiKTeX\tex/latex/00miktex\epstopdf-sys.cfg
 File: epstopdf-sys.cfg 2021/03/18 v2.0 Configuration of epstopdf for MiKTeX
 ))
-Package hyperref Info: Link coloring OFF on input line 42.
+Package hyperref Info: Link coloring OFF on input line 43.
 
 (C:\Program Files\MiKTeX\tex/latex/hyperref\nameref.sty
 Package: nameref 2021-04-02 v2.47 Cross-referencing by name of section
@@ -1199,66 +1199,66 @@ Package: gettitlestring 2019/12/15 v1.6 Cleanup title references (HO)
 )
 \c@section@level=\count372
 )
-LaTeX Info: Redefining \ref on input line 42.
-LaTeX Info: Redefining \pageref on input line 42.
-LaTeX Info: Redefining \nameref on input line 42.
+LaTeX Info: Redefining \ref on input line 43.
+LaTeX Info: Redefining \pageref on input line 43.
+LaTeX Info: Redefining \nameref on input line 43.
  (NAPC2023.out) (NAPC2023.out)
 \@outlinefile=\write5
 \openout5 = `NAPC2023.out'.
 
 LaTeX Font Info:    Overwriting symbol font `operators' in version `normal'
-(Font)                  OT1/cmr/m/n --> OT1/cmss/m/n on input line 42.
+(Font)                  OT1/cmr/m/n --> OT1/cmss/m/n on input line 43.
 LaTeX Font Info:    Overwriting symbol font `operators' in version `bold'
-(Font)                  OT1/cmr/bx/n --> OT1/cmss/b/n on input line 42.
+(Font)                  OT1/cmr/bx/n --> OT1/cmss/b/n on input line 43.
 \symnumbers=\mathgroup6
 \sympureletters=\mathgroup7
 LaTeX Font Info:    Overwriting math alphabet `\mathrm' in version `normal'
-(Font)                  OT1/cmss/m/n --> OT1/cmr/m/n on input line 42.
-LaTeX Font Info:    Redeclaring math alphabet \mathbf on input line 42.
+(Font)                  OT1/cmss/m/n --> OT1/cmr/m/n on input line 43.
+LaTeX Font Info:    Redeclaring math alphabet \mathbf on input line 43.
 LaTeX Font Info:    Overwriting math alphabet `\mathbf' in version `normal'
-(Font)                  OT1/cmr/bx/n --> OT1/FiraSans-OsF/b/n on input line 42.
+(Font)                  OT1/cmr/bx/n --> OT1/FiraSans-OsF/b/n on input line 43.
 
 LaTeX Font Info:    Overwriting math alphabet `\mathbf' in version `bold'
-(Font)                  OT1/cmr/bx/n --> OT1/FiraSans-OsF/b/n on input line 42.
+(Font)                  OT1/cmr/bx/n --> OT1/FiraSans-OsF/b/n on input line 43.
 
-LaTeX Font Info:    Redeclaring math alphabet \mathsf on input line 42.
+LaTeX Font Info:    Redeclaring math alphabet \mathsf on input line 43.
 LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `normal'
-(Font)                  OT1/cmss/m/n --> OT1/FiraSans-OsF/m/n on input line 42.
+(Font)                  OT1/cmss/m/n --> OT1/FiraSans-OsF/m/n on input line 43.
 
 LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `bold'
-(Font)                  OT1/cmss/bx/n --> OT1/FiraSans-OsF/m/n on input line 42
+(Font)                  OT1/cmss/bx/n --> OT1/FiraSans-OsF/m/n on input line 43
 .
-LaTeX Font Info:    Redeclaring math alphabet \mathit on input line 42.
+LaTeX Font Info:    Redeclaring math alphabet \mathit on input line 43.
 LaTeX Font Info:    Overwriting math alphabet `\mathit' in version `normal'
-(Font)                  OT1/cmr/m/it --> OT1/FiraSans-OsF/m/it on input line 42
+(Font)                  OT1/cmr/m/it --> OT1/FiraSans-OsF/m/it on input line 43
 .
 LaTeX Font Info:    Overwriting math alphabet `\mathit' in version `bold'
 (Font)                  OT1/cmr/bx/it --> OT1/FiraSans-OsF/m/it on input line 4
-2.
-LaTeX Font Info:    Redeclaring math alphabet \mathtt on input line 42.
+3.
+LaTeX Font Info:    Redeclaring math alphabet \mathtt on input line 43.
 LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `normal'
-(Font)                  OT1/cmtt/m/n --> OT1/cmtt/m/n on input line 42.
+(Font)                  OT1/cmtt/m/n --> OT1/cmtt/m/n on input line 43.
 LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `bold'
-(Font)                  OT1/cmtt/m/n --> OT1/cmtt/m/n on input line 42.
+(Font)                  OT1/cmtt/m/n --> OT1/cmtt/m/n on input line 43.
 LaTeX Font Info:    Overwriting symbol font `numbers' in version `bold'
 (Font)                  OT1/FiraSans-OsF/m/n --> OT1/FiraSans-OsF/b/n on input 
-line 42.
+line 43.
 LaTeX Font Info:    Overwriting symbol font `pureletters' in version `bold'
 (Font)                  OT1/FiraSans-OsF/m/it --> OT1/FiraSans-OsF/b/it on inpu
-t line 42.
+t line 43.
 LaTeX Font Info:    Overwriting math alphabet `\mathrm' in version `bold'
-(Font)                  OT1/cmss/b/n --> OT1/cmr/b/n on input line 42.
+(Font)                  OT1/cmss/b/n --> OT1/cmr/b/n on input line 43.
 LaTeX Font Info:    Overwriting math alphabet `\mathbf' in version `bold'
 (Font)                  OT1/FiraSans-OsF/b/n --> OT1/FiraSans-OsF/b/n on input 
-line 42.
+line 43.
 LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `bold'
 (Font)                  OT1/FiraSans-OsF/m/n --> OT1/FiraSans-OsF/b/n on input 
-line 42.
+line 43.
 LaTeX Font Info:    Overwriting math alphabet `\mathit' in version `bold'
 (Font)                  OT1/FiraSans-OsF/m/it --> OT1/FiraSans-OsF/b/it on inpu
-t line 42.
+t line 43.
 LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `bold'
-(Font)                  OT1/cmtt/m/n --> OT1/cmtt/b/n on input line 42.
+(Font)                  OT1/cmtt/m/n --> OT1/cmtt/b/n on input line 43.
 
 (C:\Users\devan.mcgranahan\AppData\Roaming\MiKTeX\tex/latex/translator\translat
 or-basic-dictionary-English.dict
@@ -1296,174 +1296,54 @@ enefit from \pgfplotsset{compat=1.18} (current compat level: 1.9).
 LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/m/n' in size <6> not available
 
 (Font)              Font shape `OT1/FiraSans-OsF/regular/n' tried instead on in
-put line 42.
+put line 43.
 LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/regular/n' will be
-(Font)              scaled to size 6.0pt on input line 42.
+(Font)              scaled to size 6.0pt on input line 43.
 LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/m/n' in size <8> not available
 
 (Font)              Font shape `OT1/FiraSans-OsF/regular/n' tried instead on in
-put line 42.
+put line 43.
 LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/regular/n' will be
-(Font)              scaled to size 8.0pt on input line 42.
+(Font)              scaled to size 8.0pt on input line 43.
 LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/m/n' in size <14.4> not availa
 ble
 (Font)              Font shape `OT1/FiraSans-OsF/regular/n' tried instead on in
-put line 44.
+put line 45.
 LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/regular/n' will be
-(Font)              scaled to size 14.4pt on input line 44.
+(Font)              scaled to size 14.4pt on input line 45.
 LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/b/n' in size <14.4> not availa
 ble
 (Font)              Font shape `OT1/FiraSans-OsF/bold/n' tried instead on input
- line 44.
+ line 45.
 LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/bold/n' will be
-(Font)              scaled to size 14.4pt on input line 44.
+(Font)              scaled to size 14.4pt on input line 45.
 LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/m/n' in size <12> not availabl
 e
 (Font)              Font shape `OT1/FiraSans-OsF/regular/n' tried instead on in
-put line 44.
+put line 45.
 LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/regular/n' will be
-(Font)              scaled to size 12.0pt on input line 44.
+(Font)              scaled to size 12.0pt on input line 45.
 LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/m/n' in size <10> not availabl
 e
 (Font)              Font shape `OT1/FiraSans-OsF/regular/n' tried instead on in
-put line 44.
+put line 45.
 LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/regular/n' will be
-(Font)              scaled to size 10.0pt on input line 44.
+(Font)              scaled to size 10.0pt on input line 45.
 LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/m/it' in size <8> not availabl
 e
 (Font)              Font shape `OT1/FiraSans-OsF/regular/it' tried instead on i
-nput line 44.
+nput line 45.
 LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/regular/it' will be
-(Font)              scaled to size 8.0pt on input line 44.
+(Font)              scaled to size 8.0pt on input line 45.
 
-Overfull \vbox (15.63992pt too high) detected at line 44
+Overfull \vbox (15.63992pt too high) detected at line 45
  []
 
 [1
 
 {C:/Users/devan.mcgranahan/AppData/Local/MiKTeX/pdftex/config/pdftex.map}]
-<figs/FireRegimeNAPC.pdf, id=33, 713.66624pt x 387.4475pt>
-File: figs/FireRegimeNAPC.pdf Graphic file (type pdf)
-<use figs/FireRegimeNAPC.pdf>
-Package pdftex.def Info: figs/FireRegimeNAPC.pdf  used on input line 52.
-(pdftex.def)             Requested size: 307.28987pt x 166.82382pt.
-LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/b/n' in size <12> not availabl
-e
-(Font)              Font shape `OT1/FiraSans-OsF/bold/n' tried instead on input
- line 52.
-LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/bold/n' will be
-(Font)              scaled to size 12.0pt on input line 52.
-LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/m/n' in size <4> not available
-
-(Font)              Font shape `OT1/FiraSans-OsF/regular/n' tried instead on in
-put line 52.
-LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/regular/n' will be
-(Font)              scaled to size 4.0pt on input line 52.
-
-[2
-
- <./figs/FireRegimeNAPC.pdf>]
-<figs/FireRegimeModulatorsNAPC.pdf, id=71, 317.185pt x 246.9225pt>
-File: figs/FireRegimeModulatorsNAPC.pdf Graphic file (type pdf)
-<use figs/FireRegimeModulatorsNAPC.pdf>
-Package pdftex.def Info: figs/FireRegimeModulatorsNAPC.pdf  used on input line 
-60.
-(pdftex.def)             Requested size: 276.559pt x 215.31439pt.
-
-Overfull \vbox (14.94849pt too high) detected at line 60
- []
-
-[3
-
- <./figs/FireRegimeModulatorsNAPC.pdf>]
-<figs/region_map-1.pdf, id=102, 578.16pt x 361.35pt>
-File: figs/region_map-1.pdf Graphic file (type pdf)
-<use figs/region_map-1.pdf>
-Package pdftex.def Info: figs/region_map-1.pdf  used on input line 69.
-(pdftex.def)             Requested size: 307.28987pt x 192.05493pt.
- [4
-
- <./figs/region_map-1.pdf>]
-<figs/PBGmaps.pdf, id=115, 845.1575pt x 597.23125pt>
-File: figs/PBGmaps.pdf Graphic file (type pdf)
-<use figs/PBGmaps.pdf>
-Package pdftex.def Info: figs/PBGmaps.pdf  used on input line 77.
-(pdftex.def)             Requested size: 307.28987pt x 217.15375pt.
-
-Overfull \vbox (16.78784pt too high) detected at line 77
- []
-
-[5
-
- <./figs/PBGmaps.pdf>]
-<figs/BobSWBurnedOutline2.png, id=139, 602.25pt x 289.83281pt>
-File: figs/BobSWBurnedOutline2.png Graphic file (type png)
-<use figs/BobSWBurnedOutline2.png>
-Package pdftex.def Info: figs/BobSWBurnedOutline2.png  used on input line 85.
-(pdftex.def)             Requested size: 307.28987pt x 147.88795pt.
- [6
-
- <./figs/BobSWBurnedOutline2.png>]
-<figs/BarkerBurns-1.pdf, id=145, 505.89pt x 361.35pt>
-File: figs/BarkerBurns-1.pdf Graphic file (type pdf)
-<use figs/BarkerBurns-1.pdf>
-Package pdftex.def Info: figs/BarkerBurns-1.pdf  used on input line 95.
-(pdftex.def)             Requested size: 276.559pt x 197.54663pt.
-
-Overfull \vbox (22.10565pt too high) detected at line 95
- []
-
-[7
-
- <./figs/BarkerBurns-1.pdf>]
-LaTeX Font Info:    Trying to load font information for U+msa on input line 97.
-
-
-(C:\Program Files\MiKTeX\tex/latex/amsfonts\umsa.fd
-File: umsa.fd 2013/01/14 v3.01 AMS symbols A
-)
-LaTeX Font Info:    Trying to load font information for U+msb on input line 97.
-
-
-(C:\Program Files\MiKTeX\tex/latex/amsfonts\umsb.fd
-File: umsb.fd 2013/01/14 v3.01 AMS symbols B
-)
-LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/m/it' in size <10.95> not avai
-lable
-(Font)              Font shape `OT1/FiraSans-OsF/regular/it' tried instead on i
-nput line 97.
-LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/regular/it' will be
-(Font)              scaled to size 10.95pt on input line 97.
-LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/m/it' in size <6> not availabl
-e
-(Font)              Font shape `OT1/FiraSans-OsF/regular/it' tried instead on i
-nput line 97.
-LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/regular/it' will be
-(Font)              scaled to size 6.0pt on input line 97.
- [8
-
-]
-<figs/GoodBurn.jpg, id=167, 3276.24pt x 2457.18pt>
-File: figs/GoodBurn.jpg Graphic file (type jpg)
-<use figs/GoodBurn.jpg>
-Package pdftex.def Info: figs/GoodBurn.jpg  used on input line 128.
-(pdftex.def)             Requested size: 138.2795pt x 103.70702pt.
-<figs/StreeterFire_17.jpg, id=168, 302.8113pt x 201.1515pt>
-File: figs/StreeterFire_17.jpg Graphic file (type jpg)
-<use figs/StreeterFire_17.jpg>
-Package pdftex.def Info: figs/StreeterFire_17.jpg  used on input line 128.
-(pdftex.def)             Requested size: 153.64493pt x 102.06718pt.
-LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/b/n' in size <10.95> not avail
-able
-(Font)              Font shape `OT1/FiraSans-OsF/bold/n' tried instead on input
- line 128.
-LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/bold/n' will be
-(Font)              scaled to size 10.95pt on input line 128.
- [9
-
- <./figs/GoodBurn.jpg> <./figs/StreeterFire_17.jpg>]
 LaTeX Font Info:    Trying to load font information for TS1+FiraSans-OsF on inp
-ut line 149.
+ut line 76.
 
 (C:\Users\devan.mcgranahan\AppData\Roaming\MiKTeX\tex/latex/fira\ts1firasans-os
 f.fd
@@ -1473,111 +1353,262 @@ s-OsF.
 LaTeX Font Info:    Font shape `TS1/FiraSans-OsF/m/n' in size <10.95> not avail
 able
 (Font)              Font shape `TS1/FiraSans-OsF/regular/n' tried instead on in
-put line 149.
+put line 76.
 LaTeX Font Info:    Font shape `TS1/FiraSans-OsF/regular/n' will be
-(Font)              scaled to size 10.95pt on input line 149.
+(Font)              scaled to size 10.95pt on input line 76.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 76.
+
+ (C:\Program Files\MiKTeX\tex/latex/amsfonts\umsa.fd
+File: umsa.fd 2013/01/14 v3.01 AMS symbols A
+)
+LaTeX Font Info:    Trying to load font information for U+msb on input line 76.
+
+
+(C:\Program Files\MiKTeX\tex/latex/amsfonts\umsb.fd
+File: umsb.fd 2013/01/14 v3.01 AMS symbols B
+)
+LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/m/it' in size <10.95> not avai
+lable
+(Font)              Font shape `OT1/FiraSans-OsF/regular/it' tried instead on i
+nput line 76.
+LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/regular/it' will be
+(Font)              scaled to size 10.95pt on input line 76.
+LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/m/it' in size <6> not availabl
+e
+(Font)              Font shape `OT1/FiraSans-OsF/regular/it' tried instead on i
+nput line 76.
+LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/regular/it' will be
+(Font)              scaled to size 6.0pt on input line 76.
 LaTeX Font Info:    Font shape `TS1/FiraSans-OsF/m/n' in size <10> not availabl
 e
 (Font)              Font shape `TS1/FiraSans-OsF/regular/n' tried instead on in
-put line 149.
+put line 76.
 LaTeX Font Info:    Font shape `TS1/FiraSans-OsF/regular/n' will be
-(Font)              scaled to size 10.0pt on input line 149.
+(Font)              scaled to size 10.0pt on input line 76.
+<figs/StreeterRxFire.jpg, id=33, 3276.24pt x 2457.18pt>
+File: figs/StreeterRxFire.jpg Graphic file (type jpg)
+<use figs/StreeterRxFire.jpg>
+Package pdftex.def Info: figs/StreeterRxFire.jpg  used on input line 76.
+(pdftex.def)             Requested size: 153.64493pt x 115.21751pt.
+LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/b/n' in size <12> not availabl
+e
+(Font)              Font shape `OT1/FiraSans-OsF/bold/n' tried instead on input
+ line 76.
+LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/bold/n' will be
+(Font)              scaled to size 12.0pt on input line 76.
+LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/m/n' in size <4> not available
+
+(Font)              Font shape `OT1/FiraSans-OsF/regular/n' tried instead on in
+put line 76.
+LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/regular/n' will be
+(Font)              scaled to size 4.0pt on input line 76.
+ [2
+
+ <./figs/StreeterRxFire.jpg>]
+File: figs/StreeterRxFire.jpg Graphic file (type jpg)
+<use figs/StreeterRxFire.jpg>
+Package pdftex.def Info: figs/StreeterRxFire.jpg  used on input line 105.
+(pdftex.def)             Requested size: 153.64493pt x 115.21751pt.
+LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/b/n' in size <10.95> not avail
+able
+(Font)              Font shape `OT1/FiraSans-OsF/bold/n' tried instead on input
+ line 105.
+LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/bold/n' will be
+(Font)              scaled to size 10.95pt on input line 105.
+ [3
+
+]
+<figs/FireRegimeNAPC.pdf, id=45, 713.66624pt x 387.4475pt>
+File: figs/FireRegimeNAPC.pdf Graphic file (type pdf)
+<use figs/FireRegimeNAPC.pdf>
+Package pdftex.def Info: figs/FireRegimeNAPC.pdf  used on input line 113.
+(pdftex.def)             Requested size: 307.28987pt x 166.82382pt.
+ [4
+
+ <./figs/FireRegimeNAPC.pdf>]
+<figs/FireRegimeModulatorsNAPC.pdf, id=83, 317.185pt x 246.9225pt>
+File: figs/FireRegimeModulatorsNAPC.pdf Graphic file (type pdf)
+<use figs/FireRegimeModulatorsNAPC.pdf>
+Package pdftex.def Info: figs/FireRegimeModulatorsNAPC.pdf  used on input line 
+121.
+(pdftex.def)             Requested size: 276.559pt x 215.31439pt.
+
+Overfull \vbox (14.94849pt too high) detected at line 121
+ []
+
+[5
+
+ <./figs/FireRegimeModulatorsNAPC.pdf>]
+<figs/region_map-1.pdf, id=114, 578.16pt x 361.35pt>
+File: figs/region_map-1.pdf Graphic file (type pdf)
+<use figs/region_map-1.pdf>
+Package pdftex.def Info: figs/region_map-1.pdf  used on input line 130.
+(pdftex.def)             Requested size: 307.28987pt x 192.05493pt.
+LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/m/it' in size <12> not availab
+le
+(Font)              Font shape `OT1/FiraSans-OsF/regular/it' tried instead on i
+nput line 130.
+LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/regular/it' will be
+(Font)              scaled to size 12.0pt on input line 130.
+LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/b/n' in size <8> not available
+
+(Font)              Font shape `OT1/FiraSans-OsF/bold/n' tried instead on input
+ line 130.
+LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/bold/n' will be
+(Font)              scaled to size 8.0pt on input line 130.
+ [6
+
+ <./figs/region_map-1.pdf>]
+<figs/PBGmaps.pdf, id=127, 845.1575pt x 597.23125pt>
+File: figs/PBGmaps.pdf Graphic file (type pdf)
+<use figs/PBGmaps.pdf>
+Package pdftex.def Info: figs/PBGmaps.pdf  used on input line 138.
+(pdftex.def)             Requested size: 307.28987pt x 217.15375pt.
+
+Overfull \vbox (16.78784pt too high) detected at line 138
+ []
+
+[7
+
+ <./figs/PBGmaps.pdf>]
+<figs/BobSWBurnedOutline2.png, id=152, 602.25pt x 289.83281pt>
+File: figs/BobSWBurnedOutline2.png Graphic file (type png)
+<use figs/BobSWBurnedOutline2.png>
+Package pdftex.def Info: figs/BobSWBurnedOutline2.png  used on input line 146.
+(pdftex.def)             Requested size: 307.28987pt x 147.88795pt.
+ [8
+
+ <./figs/BobSWBurnedOutline2.png>]
+<figs/severity_gg-1.pdf, id=158, 505.89pt x 361.35pt>
+File: figs/severity_gg-1.pdf Graphic file (type pdf)
+<use figs/severity_gg-1.pdf>
+Package pdftex.def Info: figs/severity_gg-1.pdf  used on input line 155.
+(pdftex.def)             Requested size: 307.28987pt x 219.49687pt.
+
+Overfull \vbox (44.0559pt too high) detected at line 155
+ []
+
+[9
+
+ <./figs/severity_gg-1.pdf>]
+<figs/BarkerBurns-1.pdf, id=171, 505.89pt x 361.35pt>
+File: figs/BarkerBurns-1.pdf Graphic file (type pdf)
+<use figs/BarkerBurns-1.pdf>
+Package pdftex.def Info: figs/BarkerBurns-1.pdf  used on input line 165.
+(pdftex.def)             Requested size: 276.559pt x 197.54663pt.
+
+Overfull \vbox (22.10565pt too high) detected at line 165
+ []
+
+[10
+
+ <./figs/BarkerBurns-1.pdf>]
 LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/m/it' in size <10> not availab
 le
 (Font)              Font shape `OT1/FiraSans-OsF/regular/it' tried instead on i
-nput line 149.
+nput line 186.
 LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/regular/it' will be
-(Font)              scaled to size 10.0pt on input line 149.
- [10
-
-] [11
+(Font)              scaled to size 10.0pt on input line 186.
+ [11
 
 ] [12
 
 ]
-<figs/FireDeclarations.png, id=192, 794.97pt x 614.295pt>
-File: figs/FireDeclarations.png Graphic file (type png)
-<use figs/FireDeclarations.png>
-Package pdftex.def Info: figs/FireDeclarations.png  used on input line 161.
-(pdftex.def)             Requested size: 307.28987pt x 237.45569pt.
-
-Overfull \vbox (37.08978pt too high) detected at line 161
- []
-
-[13
-
- <./figs/FireDeclarations.png>]
-<figs/StutsmanBurnBan.png, id=199, 513.79453pt x 269.13046pt>
-File: figs/StutsmanBurnBan.png Graphic file (type png)
-<use figs/StutsmanBurnBan.png>
-Package pdftex.def Info: figs/StutsmanBurnBan.png  used on input line 169.
-(pdftex.def)             Requested size: 307.28987pt x 160.96208pt.
- [14
-
- <./figs/StutsmanBurnBan.png>]
-<figs/StutsmanOrdinance.png, id=207, 539.39015pt x 200.62453pt>
-File: figs/StutsmanOrdinance.png Graphic file (type png)
-<use figs/StutsmanOrdinance.png>
-Package pdftex.def Info: figs/StutsmanOrdinance.png  used on input line 177.
-(pdftex.def)             Requested size: 307.28987pt x 114.29593pt.
- [15
-
- <./figs/StutsmanOrdinance.png>]
-<figs/ghd.jpg, id=214, 475.7775pt x 261.97874pt>
-File: figs/ghd.jpg Graphic file (type jpg)
-<use figs/ghd.jpg>
-Package pdftex.def Info: figs/ghd.jpg  used on input line 206.
-(pdftex.def)             Requested size: 169.01036pt x 93.06107pt.
- [16
-
- <./figs/ghd.jpg>]
+<figs/GoodBurn.jpg, id=197, 3276.24pt x 2457.18pt>
+File: figs/GoodBurn.jpg Graphic file (type jpg)
+<use figs/GoodBurn.jpg>
+Package pdftex.def Info: figs/GoodBurn.jpg  used on input line 221.
+(pdftex.def)             Requested size: 138.2795pt x 103.70702pt.
+<figs/StreeterFire_17.jpg, id=198, 302.8113pt x 201.1515pt>
 File: figs/StreeterFire_17.jpg Graphic file (type jpg)
 <use figs/StreeterFire_17.jpg>
-Package pdftex.def Info: figs/StreeterFire_17.jpg  used on input line 216.
-(pdftex.def)             Requested size: 307.28987pt x 204.14359pt.
+Package pdftex.def Info: figs/StreeterFire_17.jpg  used on input line 221.
+(pdftex.def)             Requested size: 153.64493pt x 102.06718pt.
+ [13
 
-Overfull \vbox (3.77768pt too high) detected at line 216
+ <./figs/GoodBurn.jpg> <./figs/StreeterFire_17.jpg>] [14
+
+]
+<figs/TorreGreenFuel.jpg, id=211, 2457.18pt x 3276.24pt>
+File: figs/TorreGreenFuel.jpg Graphic file (type jpg)
+<use figs/TorreGreenFuel.jpg>
+Package pdftex.def Info: figs/TorreGreenFuel.jpg  used on input line 259.
+(pdftex.def)             Requested size: 110.6219pt x 147.47443pt.
+ [15
+
+ <./figs/TorreGreenFuel.jpg>] [16
+
+]
+<figs/FireDeclarations.png, id=225, 794.97pt x 614.295pt>
+File: figs/FireDeclarations.png Graphic file (type png)
+<use figs/FireDeclarations.png>
+Package pdftex.def Info: figs/FireDeclarations.png  used on input line 269.
+(pdftex.def)             Requested size: 307.28987pt x 237.45569pt.
+
+Overfull \vbox (37.08978pt too high) detected at line 269
  []
 
 [17
 
-]
-LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/b/n' in size <10> not availabl
-e
-(Font)              Font shape `OT1/FiraSans-OsF/bold/n' tried instead on input
- line 249.
-LaTeX Font Info:    Font shape `OT1/FiraSans-OsF/bold/n' will be
-(Font)              scaled to size 10.0pt on input line 249.
-<figs/BobPasture.png, id=225, 598.48593pt x 393.72093pt>
-File: figs/BobPasture.png Graphic file (type png)
-<use figs/BobPasture.png>
-Package pdftex.def Info: figs/BobPasture.png  used on input line 249.
-(pdftex.def)             Requested size: 138.2795pt x 90.96843pt.
+ <./figs/FireDeclarations.png>]
+<figs/StutsmanBurnBan.png, id=231, 513.79453pt x 269.13046pt>
+File: figs/StutsmanBurnBan.png Graphic file (type png)
+<use figs/StutsmanBurnBan.png>
+Package pdftex.def Info: figs/StutsmanBurnBan.png  used on input line 277.
+(pdftex.def)             Requested size: 307.28987pt x 160.96208pt.
  [18
 
- <./figs/BobPasture.png>]
-<figs/mop_up.jpg, id=231, 722.7pt x 542.025pt>
+ <./figs/StutsmanBurnBan.png>]
+<figs/StutsmanOrdinance.png, id=239, 539.39015pt x 200.62453pt>
+File: figs/StutsmanOrdinance.png Graphic file (type png)
+<use figs/StutsmanOrdinance.png>
+Package pdftex.def Info: figs/StutsmanOrdinance.png  used on input line 285.
+(pdftex.def)             Requested size: 307.28987pt x 114.29593pt.
+ [19
+
+ <./figs/StutsmanOrdinance.png>]
+<figs/venn.pdf, id=247, 761.84625pt x 355.3275pt>
+File: figs/venn.pdf Graphic file (type pdf)
+<use figs/venn.pdf>
+Package pdftex.def Info: figs/venn.pdf  used on input line 300.
+(pdftex.def)             Requested size: 307.28987pt x 143.31586pt.
+ [20
+
+ <./figs/venn.pdf>]
+<figs/levers.pdf, id=271, 781.92125pt x 292.09125pt>
+File: figs/levers.pdf Graphic file (type pdf)
+<use figs/levers.pdf>
+Package pdftex.def Info: figs/levers.pdf  used on input line 310.
+(pdftex.def)             Requested size: 307.28987pt x 114.78868pt.
+ [21
+
+ <./figs/levers.pdf>]
+File: figs/levers.pdf Graphic file (type pdf)
+<use figs/levers.pdf>
+Package pdftex.def Info: figs/levers.pdf  used on input line 320.
+(pdftex.def)             Requested size: 307.28987pt x 114.78868pt.
+
+[22
+
+]
+<figs/mop_up.jpg, id=311, 722.7pt x 542.025pt>
 File: figs/mop_up.jpg Graphic file (type jpg)
 <use figs/mop_up.jpg>
-Package pdftex.def Info: figs/mop_up.jpg  used on input line 273.
+Package pdftex.def Info: figs/mop_up.jpg  used on input line 345.
 (pdftex.def)             Requested size: 153.64493pt x 115.2346pt.
-
-Overfull \vbox (4.46323pt too high) detected at line 273
- []
-
-[19
+ [23
 
  <./figs/mop_up.jpg>]
-<figs/fire_cows_close.jpg, id=238, 3243.11626pt x 2044.63875pt>
+<figs/fire_cows_close.jpg, id=317, 3243.11626pt x 2044.63875pt>
 File: figs/fire_cows_close.jpg Graphic file (type jpg)
 <use figs/fire_cows_close.jpg>
-Package pdftex.def Info: figs/fire_cows_close.jpg  used on input line 283.
+Package pdftex.def Info: figs/fire_cows_close.jpg  used on input line 355.
 (pdftex.def)             Requested size: 307.28987pt x 193.71233pt.
 
-Overfull \vbox (16.7937pt too high) detected at line 283
+Overfull \vbox (16.7937pt too high) detected at line 355
  []
 
-[20
+[24
 
  <./figs/fire_cows_close.jpg>]
 \tf@nav=\write6
@@ -1594,22 +1625,24 @@ Package rerunfilecheck Info: File `NAPC2023.out' has not changed.
 (rerunfilecheck)             Checksum: B73A2A943CC0B110884074664B970053;417.
  ) 
 Here is how much of TeX's memory you used:
- 37859 strings out of 478870
- 886663 string characters out of 2858660
- 1288089 words of memory out of 3000000
- 54969 multiletter control sequences out of 15000+600000
- 471236 words of font info for 66 fonts, out of 8000000 for 9000
+ 37923 strings out of 478870
+ 888048 string characters out of 2858660
+ 1287088 words of memory out of 3000000
+ 55020 multiletter control sequences out of 15000+600000
+ 476942 words of font info for 73 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 128i,13n,124p,1833b,798s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 128i,13n,124p,1833b,792s stack positions out of 5000i,500n,10000p,200000b,80000s
 {C:/Users/devan.mcgranahan/AppData/Roaming/MiKTeX/fonts/enc/dvips/fira/fir_d6
 7aat.enc}{C:/Users/devan.mcgranahan/AppData/Roaming/MiKTeX/fonts/enc/dvips/fira
 /fir_337jzs.enc}<C:/Users/devan.mcgranahan/AppData/Roaming/MiKTeX/fonts/type1/p
 ublic/fira/FiraSans-Bold.pfb><C:/Users/devan.mcgranahan/AppData/Roaming/MiKTeX/
 fonts/type1/public/fira/FiraSans-Italic.pfb><C:/Users/devan.mcgranahan/AppData/
-Roaming/MiKTeX/fonts/type1/public/fira/FiraSans-Regular.pfb>
-Output written on NAPC2023.pdf (20 pages, 9568465 bytes).
+Roaming/MiKTeX/fonts/type1/public/fira/FiraSans-Regular.pfb><C:/Program Files/M
+iKTeX/fonts/type1/public/amsfonts/cm/cmmi10.pfb><C:/Program Files/MiKTeX/fonts/
+type1/public/amsfonts/cm/cmss10.pfb>
+Output written on NAPC2023.pdf (24 pages, 13300440 bytes).
 PDF statistics:
- 275 PDF objects out of 1000 (max. 8388607)
- 44 named destinations out of 1000 (max. 500000)
- 142 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 363 PDF objects out of 1000 (max. 8388607)
+ 52 named destinations out of 1000 (max. 500000)
+ 157 words of extra memory for PDF output out of 10000 (max. 10000000)
 
