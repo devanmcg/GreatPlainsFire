@@ -52,7 +52,9 @@ pacman::p_load(foreach, doSNOW)
                                  mo_range[m], '-', 
                                  '30') )  %>% 
                 select(-source, -lat, -lon) %>%
-                mutate(hdwi = wind_vel * vpd) %>%
+                mutate(hdwi = wind_vel * vpd, 
+                       tmax = tmax = 275.15, 
+                       ) %>%
                 pivot_longer(names_to = "param", 
                              values_to = "value", 
                              -date) 

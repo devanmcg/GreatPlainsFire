@@ -73,7 +73,7 @@ print(state_map,vp=v1)
 print(region_map,vp=v2)
 ```
 
-```{r BarkerBurns}
+```{r BarkerBurns, message= FALSE}
   # Fire mapping 
 
 
