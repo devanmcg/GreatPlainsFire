@@ -1,0 +1,71 @@
+NDVI
+
+//VERSION=3
+function setup() {
+  return {
+    input: ["B04", "B08"],
+    output: { bands: 1, sampleType: "UINT16" }
+  };
+}
+
+function evaluatePixel(sample) {
+let ndvi = index(sample.B08, sample.B04);
+// return[ndvi]; 
+return [10000 * ndvi + 10000]; // for UINT16
+}
+
+NBR 
+
+//VERSION=3
+function setup() {
+  return {
+    input: ["B08", "B12"],
+    output: { bands: 1, sampleType: "UINT16" }
+  };
+}
+
+function evaluatePixel(sample) {
+let nbr = index(sample.B08, sample.B12);
+// return[ndvi]; 
+return [10000 * nbr + 10000]; // for UINT16
+}
+
+MSAVI
+
+//VERSION=3
+function setup() {
+  return {
+    input: ["B08", "B04"],
+    output: { bands: 1, sampleType: "UINT16" }
+  };
+}
+
+function evaluatePixel(sample) {
+let msavi = 0.5 *(2 * sample.B08 + 1 - (((2 * sample.B08 + 1)^2)- 8 * (sample.B08-sample.B04))^0.5);
+;
+return [10000 * msavi + 10000]; // for UINT16
+}
+
+Multi band 
+
+//VERSION=3
+function setup() {
+  return {
+    input: ["B04", "B08", "B8A", "B11", "B12"],
+    output: { bands: 5, sampleType: "UINT16" }
+  };
+}
+
+function evaluatePixel(sample) {
+let nbr = index(sample.B08, sample.B12);
+let ndvi = index(sample.B08, sample.B04);
+let msavi = 0.5*(2*sample.B08+1 - (((2*sample.B08+1)^2) - 8*(sample.B08-sample.B04))^0.5); 
+let msi = sample.B11 / sample.B08;
+let ndmi = index(samples.B8A, samples.B11);
+// apply offset for UINT16 
+return [10000 * nbr + 10000, 
+        10000 * ndvi + 10000, 
+        10000 * msavi + 10000,
+        10000 * msi + 10000,
+        10000 * ndmi + 10000]; 
+}

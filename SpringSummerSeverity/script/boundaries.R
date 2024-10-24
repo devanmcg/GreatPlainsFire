@@ -27,7 +27,28 @@ fp = './gis/boundaries'
 
   fires <- st_read(cgrec_gpkg, 'FirePerimeters') %>%
               mutate(Year = as.factor(Year))
+  
+  bind_rows(
+  pastures %>%
+    filter(Unit == 'North') %>%
+    st_union() %>%
+    st_transform(4326), 
+    pastures %>%
+    filter(Unit == 'South') %>%
+    st_union() %>%
+    st_transform(4326) )
 
+  st_read(cgrec_gpkg, 'Pastures') %>%
+    mutate(Unit = recode(Unit, 'Bob' = 'North', 'Barker' = 'South'))%>%
+    st_transform(4326) %>%
+    mutate(Area = st_area(.)) %>%
+    group_by(Unit) %>%
+    summarize(Area = sum(Area)) %>%
+    select(Unit) %>%
+    write_sf('./gis/pastures.shp')
+    
+  
+  
     ggplot() + theme_void() +
       geom_sf(data = filter(fires, unit == 'Barker'), 
       aes(fill = Year, 

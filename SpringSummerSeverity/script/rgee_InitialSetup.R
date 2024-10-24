@@ -34,7 +34,15 @@ ee_utils_sak_copy(
 )
 
 # Validate your SaK
+googleCloudStorageR::gcs_create_bucket('rgee', projectId = 'ee-devanmcg')
 ee_utils_sak_validate()
 
 
 ee_clean_user_credentials('ee-devanmcg')
+
+library(rgee)
+ee_check()
+
+
+ee$Authenticate(auth_mode='notebook')
+ee$Initialize(project='ee-devanmcg')

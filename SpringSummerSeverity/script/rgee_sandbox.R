@@ -1,6 +1,8 @@
 pacman::p_load(tidyverse, sf, rgee)
 
-lem <- read_sf('C:/Users/devan.mcgranahan/USDA/Rangeland responses to fire - Patch burning/Lemonade Fire/mapping/SpatialData/LemonadePerimeter', 
+ee_Initialize(drive = TRUE)
+
+lem <- read_sf('C:/Users/devan.mcgranahan/USDA/Rangeland responses to fire - Fire x herbivory/Lemonade Fire/mapping/SpatialData/LemonadePerimeter', 
                'LemonadePerimeter') %>%
                 st_transform(4326)
 lem_box <- st_as_sfc(st_bbox(lem), crs=4326)
