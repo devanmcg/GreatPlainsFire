@@ -1,0 +1,228 @@
+---
+title: Spring vs. summer fire regimes in central North Dakota
+author: DA McGranahan & JP Angerer??
+output: 
+  html_document:
+    highlight: tango
+---
+
+```{r setup, echo=FALSE, warning=FALSE, message = FALSE}
+knitr::opts_chunk$set(message = FALSE, warning=FALSE, 
+                      echo=FALSE, eval=TRUE)
+pacman::p_load(tidyverse)
+# load data 
+  load('./data/NoFireIndices.Rdata')
+  load('./data/BurnIndices.Rdata')
+# some necessary things
+  seasons <- 
+    tibble(season = c('Spring', 'Summer'), 
+           start = c(as.Date('2024-04-25'), as.Date('2024-08-07')), 
+           end = c(as.Date('2024-05-25'), as.Date('2024-08-27'))) 
+```
+
+# In a nutshell
+
+## Background 
+
+* From 2017-2020, a project was conducted to restore spatially-patchy Rx fire in Central ND
+* Two burning regimes:
+  - 4 x 40-acre, full-patch burns each spring 
+  - 4 x 20-acre, half-patch burns, first half in spring, second half in summer
+* Mixed success in restoring fire: 
+  - All spring burns were completed in each year 
+  - Summer burns only completed in 2/4 years *but not for lack of trying*
+
+## Questions
+
+* Are there biophysical limitations on summer fires? 
+  - *e.g., maybe it can just be too green and/or too wet and/or too humid to burn*
+* Can trends in vegetation and weather explain why summer burns were successful in some years and not in others? 
+  - *If so, maybe one can predict whether a summer burn is worth trying or not, or predicting summer wildfire risk*
+* Potential implications for intentions behind growing season burns vs. pre-European summer fire regimes?
+  - *Folks recognize pre-European fire regimes included considerable summer fire, and talk about greater variability in burn severity with growing-season fire as a biodiversity-friendly reason to burnin the summer. But what if pre-European summer burns were actually quite intense and burned severely because they actually only occurred under drought conditions?*
+
+## Objectives 
+
+* Explore patterns in greenness and humidity to determine effects on fire effectiveness
+* Identify anomalies and ranges of conditions conducive to prescribed fire
+
+# Remotely-sensed data 
+
+Pulled burn severity (NBR) and several vegetation indices from Sentinel-2 imagery for 2017-2020 growing seasons. 
+Data sampled from regular gridded points within burn units
+
+Vegetation indices: 
+
+* NDVI (Normalized Difference Vegetation Index)---Measure of vegetation greenness
+* NDMI (Normalized Difference Moisture Index)---Measure of moisture content of vegetation
+* MSI (Moisture Stress Index)---Another measure of moisture content sometimes used in fire risk analysis. Higher = drier
+
+## Vegetation data
+
+These data are from four *unburned* pastures in an adjacent continuous grazing treatment to remove any confounding effects of prescribed burns. 
+
+### Seasonal trends
+
+Summer fires were successful in 2017 and 2020. 
+Vegetation in both years was less green and generally more dry.
+
+```{r veg_trends, fig.cap="Blue shaded areas span the first and last dates of completed burns in the spring and summer.", fig.height = 8, fig.width = 10}
+NoFireIndices %>%
+  pivot_longer(names_to = 'index', 
+               values_to = 'value', 
+               cols = c(ndvi:ndmi)) %>%
+  group_by(ImageDate, pasture, index) %>%
+    summarise(Mean = mean(value), 
+              SEM = sd(value)/sqrt(n()), 
+              .groups = 'drop') %>%
+  mutate(ImageDate = as.Date(ImageDate, '%Y-%m-%d'), 
+         Year = lubridate::year(ImageDate), 
+         Year = as.factor(Year), 
+         SampleDate = format(ImageDate, '%m-%d'), 
+         SampleDate = as.Date(SampleDate, '%m-%d'), 
+         index = toupper(index), 
+          index = fct_rev(index)) %>%
+  filter(Year != 2016) %>%
+ggplot(aes(x = SampleDate, 
+           color = Year, 
+           fill = Year, 
+           group = interaction(pasture, Year))) + theme_bw(14) +
+  geom_rect(data= seasons, inherit.aes = FALSE,
+              aes(xmin=start, xmax=end, ymin=-Inf, ymax=+Inf), 
+              fill='lightblue', alpha=0.5) +
+  geom_smooth(aes(y = Mean, group = Year),
+              se = T,
+              level = 0.99) +
+  geom_errorbar(aes(ymin = Mean - SEM, 
+                    ymax = Mean + SEM),
+                alpha = 0.5) +
+  geom_line(aes(y = Mean),
+             alpha = 0.5) +
+  labs(x = 'Image date', y = 'Index value') + 
+  facet_wrap(~index, ncol=1, scale = 'free_y') +
+  scale_x_date( date_breaks = 'month', 
+                date_labels = '%b-%d', 
+                minor_breaks = NULL) 
+```
+
+### Seasons summarized
+
+* Greenness:
+  - NDVI during all spring burns generally pretty low
+  - Successful summer burn years higher greenness than any spring...
+  - ... still slightly but distinctly lower than unsuccessful years
+  
+* Moisture content: 
+  - High variability in spring seasons across years
+  - Successful summer seasons drier than in unsuccessful years
+
+```{r veg_by_season, fig.cap="Data summarized by year from shaded blue ranges above.", fig.height = 4, fig.width = 10}
+# Get average values for burn seasons 
+  NoFireIndices %>%
+    pivot_longer(names_to = 'index', 
+                 values_to = 'value', 
+                 cols = c(ndvi:ndmi)) %>%
+    group_by(ImageDate, pasture, index) %>%
+    summarise(Median = median(value) , 
+              .groups = 'drop') %>%
+    mutate(ImageDate = as.Date(ImageDate, '%Y-%m-%d'), 
+           Year = lubridate::year(ImageDate), 
+           Year = as.factor(Year), 
+           SampleDate = format(ImageDate, '%m-%d'), 
+           SampleDate = as.Date(SampleDate, '%m-%d'), 
+           season = case_when(
+             between(SampleDate, seasons$start[1], seasons$end[1]) ~ 'Spring',
+             between(SampleDate, seasons$start[2], seasons$end[2]) ~ 'Summer', 
+             TRUE ~ NA ) ) %>%
+    filter(!is.na(season)) %>%
+    group_by(season, Year, index) %>%
+    summarize(SeasonMean = mean(Median), 
+              SeasonSEM = sd(Median)/sqrt(n()), 
+              .groups = 'drop') %>%
+    mutate(status = case_when(
+      season == 'Summer' & Year %in% c('2018', '2019') ~ "Not completed", 
+      TRUE ~ "Completed"), 
+          index = toupper(index), 
+          index = fct_rev(index)) %>%
+    ggplot(aes(x = season, y = SeasonMean, color = Year)) + theme_bw(14) +
+    geom_errorbar(aes(ymin = SeasonMean - SeasonSEM, 
+                      ymax = SeasonMean + SeasonSEM), 
+                  width = 0.25, lwd = 0.95, 
+                  position = position_dodge(width = 0.33), 
+                  key_glyph = "point")  +
+    geom_point(aes(pch = interaction(status, Year)), 
+               position = position_dodge(width = 0.33), 
+                size = 4, stroke = 2, show.legend = F) +
+    labs(x = 'Burn season', 
+         y = 'Index value', 
+         caption = 'X = Year/season in which burns were not completed') + 
+    scale_shape_manual(values = c(16, 16, 4, 16, 4, 16)) + 
+    facet_wrap(~index, ncol = 3, scale = "free") +
+    theme(axis.text.x = element_text(color = 'black')) +
+    guides(color=guide_legend(override.aes = list(pch=15, size =4))) 
+```
+
+## Burn severity 
+
+Overall it appears greener fuels consistently result in less-complete burns (although 2018 was weird). 
+
+Trends between fuel moisture content and severity were less consistent. 
+Again 2018 behaved strangely---fuel in 4 burn units in 1 block of pastures was extremely dry but still didn't burn with particularly high severity; less-dry fuel in the other block tended to burn slightly more severely. 
+The dry block was burned a couple weeks earlier than the other block. 
+
+```{r sev_veg, fig.cap="Vegetation indices pulled from closest pre-burn image, same as pre-burn NBR.", fig.height = 3.8, fig.width = 10}
+BurnIndices  %>%
+  pivot_longer(names_to = 'name', 
+               values_to = 'index', 
+               cols = c(ndvi, msi, ndmi)) %>%
+  group_by(Year, Season, fire, name) %>%
+  summarise_at(.vars = vars(dNBR, index),
+               .funs = c(Mean="mean", 
+                         SEM = function(x) {sd(x)/sqrt(n()) } )) %>%
+  ungroup() %>%
+  mutate(name = toupper(name), 
+         name = fct_rev(name)) %>% 
+  filter(Season == "Spring") %>%
+  ggplot(aes(x = index_Mean, y = dNBR_Mean, color = Year)) + theme_bw(14) +
+  geom_smooth(aes(x = index_Mean, y = dNBR_Mean), 
+              method = 'lm', 
+              color = 'black',
+              se = T, alpha = 0.2) +
+  geom_errorbar(aes(ymin = dNBR_Mean - dNBR_SEM, 
+                    ymax = dNBR_Mean + dNBR_SEM)) +
+  geom_errorbarh(aes(xmin = index_Mean - index_SEM, 
+                     xmax = index_Mean + index_SEM)) +
+  geom_point() + 
+  labs(x = 'Pre-burn index value', 
+       y = 'Burn severity (dNBR)') + 
+  geom_smooth(method = 'lm', se = F) +
+  facet_wrap(~name, scales = 'free')
+```
+
+```{r, eval = FALSE}
+full_join(by = 'fire', 
+fires %>%
+  as_tibble() %>%
+  filter(Year == '2018') %>%
+  select(fire, PreBurn), 
+
+BurnIndices  %>%
+  pivot_longer(names_to = 'name', 
+               values_to = 'index', 
+               cols = c(ndvi, msi, ndmi)) %>%
+  group_by(Year, Season, fire, name) %>%
+  summarise_at(.vars = vars(dNBR, index),
+               .funs = c(Mean="mean", 
+                         SEM = function(x) {sd(x)/sqrt(n()) } )) %>%
+  ungroup() %>%
+  filter(Year == '2018') %>%
+  select(fire, name, dNBR_Mean, index_Mean) %>%
+  pivot_wider(names_from = name, 
+              values_from = index_Mean) ) %>%
+  rename(dNBR = dNBR_Mean) %>%
+  arrange(desc(msi)) 
+```
+
+# Weather data 
+
+*Pending*

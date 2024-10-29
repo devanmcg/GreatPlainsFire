@@ -9,98 +9,88 @@ patches <- st_read(cgrec_gpkg, 'PasturePatches')
 NoFirePts <- st_read(cgrec_gpkg, 'SamplePoints') %>%
               filter(location == 'Refuge')
 
-# Get NDVI data for unburned pastures
-  ndvi_dir = 'S:/DevanMcG/Projects/SpringSummerSeverity/sentinel/NDVI'
-  ndvi_images <- list.files(ndvi_dir)
+# Get veg data for unburned pastures
+  imagery_dir = 'S:/DevanMcG/Projects/SpringSummerSeverity/sentinel/MultiBand'
+  images <- list.files(imagery_dir)
   
   { 
     begin = Sys.time() 
     pacman::p_load(foreach, doSNOW)
     cores = parallel::detectCores()
-    cl <- makeCluster(cores -1 , methods = F, useXDR = F)
+    cl <- makeCluster(cores, methods = F, useXDR = F)
     registerDoSNOW(cl)
-    NoFireNDVI <-
-      foreach(i=1:length(ndvi_images), 
+    NoFireIndices <-
+      foreach(i=1:length(images), 
               .combine = 'bind_rows',
               .errorhandling = 'remove', 
               .packages=c('tidyverse', 'sf')) %dopar% {
-        image = ndvi_images[i]
-        image_path = paste0(ndvi_dir, '/', image)
+        image = images[i]
+        image_path = paste0(imagery_dir, '/', image)
         ras <- terra::rast(image_path)
-        names(ras) <- 'ndvi'
-        ndvi_float = (ras-10000)/10000
-        terra::extract( ndvi_float,
+        names(ras) <- c('nbr', 'ndvi', 'msavi', 'msi', 'ndmi') 
+        ras <- ras[[c('ndvi', 'msi','ndmi')]]
+        float = (ras-10000)/10000
+        terra::extract(float,
           NoFirePts %>%
             select(pasture, sample) %>%
             terra::vect() , 
           FUN = mean, 
           bind = TRUE)  %>%
         st_as_sf() %>%
+          as_tibble() %>%
         mutate(ImageDate = substr(image, 1, 10)) %>%
-        as_tibble() %>%
-        select(ImageDate, pasture, sample, ndvi) 
+        select(ImageDate, pasture, sample, ndvi:ndmi) 
             }
     stopCluster(cl)
   Sys.time() - begin 
   }
-
-NoFireNDVI %>%
-  group_by(ImageDate, pasture) %>%
-    summarise(Mean = mean(ndvi), 
-              SEM = sd(ndvi)/sqrt(n()), 
-              .groups = 'drop') %>%
-  mutate(ImageDate = as.Date(ImageDate, '%Y-%m-%d'), 
-         Year = lubridate::year(ImageDate)) %>%
-  filter(Year != 2016) %>%
-ggplot(aes(x = ImageDate)) + theme_bw() +
-  geom_smooth(aes(y = Mean, 
-                  group = 1) , 
-              color = 'darkgreen', 
-              fill = 'lightgreen', 
-              level = 0.99) +
-  geom_errorbar(aes(ymin = Mean - SEM, 
-                    ymax = Mean + SEM), 
-                color = 'darkgreen', alpha = 0.5) +
-  geom_line(aes(y = Mean, 
-                group = pasture), 
-            color = 'darkgreen', alpha = 0.5) +
-  labs(x = 'Image date', y = 'NDVI') + 
-  facet_wrap(~Year, scale = 'free_x') +
-  scale_x_date( )
+# save(NoFireIndices, file = './data/NoFireIndices.Rdata')
 
 # Get fuel greenness and dNBR for completed burns
-
   fires <- st_read(cgrec_gpkg, 'FirePerimeters') %>%
               mutate(Year = as.factor(Year)) %>%
               filter(status == 'Completed') %>%
               unite('fire', c(unit, Pasture, Patch), sep = "-") %>%
               select(fire, Year, Season, PreBurn, PostBurn )
+  
   # Getting imagery dates
-  fires %>%
-    as_tibble() %>%
-    select(PreBurn, PostBurn) %>% 
-    pivot_longer(c(PreBurn, PostBurn), 
-                 values_to = 'ImageryDate') %>%
-    select(ImageryDate) %>%
-    distinct()%>%
-    arrange(ImageryDate) %>%
-    View()
+    fires %>%
+      as_tibble() %>%
+      select(PreBurn, PostBurn) %>% 
+      pivot_longer(c(PreBurn, PostBurn), 
+                   values_to = 'ImageryDate') %>%
+      select(ImageryDate) %>%
+      distinct()%>%
+      arrange(ImageryDate) %>%
+      View()
+  # Get burn seasons
+    fires %>%
+      as_tibble() %>%
+      select(Season, PreBurn, PostBurn) %>%
+      pivot_longer(names_to='type', 
+                   values_to = 'date', 
+                   cols = PreBurn:PostBurn) %>%
+      mutate(date = as.Date(date, '%Y-%m-%d')) %>%
+      filter(lubridate::year(date) != '2016') %>%
+      mutate(date = format(date, '%m-%d'), 
+             date = as.Date(date, '%m-%d')) %>%
+      group_by(Season) %>%
+      summarize(start = min(date), 
+                end = max(date)) 
   
   SamplePts <- 
     st_read(cgrec_gpkg, 'SamplePointsRegular')
   
-  ndvi_dir = 'S:/DevanMcG/Projects/SpringSummerSeverity/sentinel/NDVI'
-  nbr_dir = 'S:/DevanMcG/Projects/SpringSummerSeverity/sentinel/NBR'
-  ndvi_images <- list.files(ndvi_dir)
-  nbr_images <- list.files(nbr_dir)
+  imagery_dir = 'S:/DevanMcG/Projects/SpringSummerSeverity/sentinel/MultiBand'
+  images <- list.files(imagery_dir)
 
 { 
   begin = Sys.time() 
   pacman::p_load(foreach, doSNOW)
   cores = parallel::detectCores()
-  cl <- makeCluster(cores -1 , methods = F, useXDR = F)
+  cl <- makeCluster(cores , methods = F, useXDR = F)
   registerDoSNOW(cl)
-  dNBR <-
+  BurnIndices <-
     foreach(i=1:length(fires$fire), 
             .combine = 'bind_rows',
             .errorhandling = 'remove', 
@@ -114,78 +104,100 @@ ggplot(aes(x = ImageDate)) + theme_bw() +
               # Get dates
                 pre_date = fire$PreBurn
                 post_date = fire$PostBurn
-              #
-              # get NBR
-              #
-              # pre-fire
-                pre_file = nbr_images[substr(nbr_images, 1, 10) == pre_date]
-                pre_path = paste0(nbr_dir, '/', pre_file)
-                pre_ras <- terra::rast(pre_path)[[1]] %>%
-                            terra::crop(terra::vect(fire))
-                pre_ras2 = (pre_ras-10000)/10000
-              # post-fire
-                post_file = nbr_images[substr(nbr_images, 1, 10) == post_date]
-                post_path = paste0(nbr_dir, '/', post_file)
-                post_ras <- terra::rast(post_path)[[1]] %>%
-                              terra::crop(terra::vect(fire))
-                post_ras2 = (post_ras-10000)/10000
-              # Calculate dNBR
-                d_ras = pre_ras2 - post_ras2
-                names(d_ras) <- 'dNBR'
-              # Get NDVI
-                ndvi_file = ndvi_images[substr(ndvi_images, 1, 10) == pre_date]
-                ndvi_path = paste0(ndvi_dir, '/', ndvi_file)
-                ndvi_ras <- terra::rast(ndvi_path) %>%
-                  terra::crop(terra::vect(fire))
-                names(ndvi_ras) <- 'ndvi'
-                ndvi_ras2 = (ndvi_ras-10000)/10000
+              # Fetch & process multi-band rasters
+                # pre image
+                  pre_image = images[substr(images, 1, 10) == pre_date]
+                  pre_path = paste0(imagery_dir, '/', pre_image)
+                  pre_ras <- terra::rast(pre_path) %>%
+                                terra::crop(terra::vect(fire))
+                  names(pre_ras) <- c('nbr', 'ndvi', 'msavi', 'msi', 'ndmi') 
+                  pre_ras <-  (pre_ras-10000)/10000
+                # post-fire
+                  post_image = images[substr(images, 1, 10) == post_date]
+                  post_path = paste0(imagery_dir, '/', post_image)
+                  post_ras <- terra::rast(post_path)[[1]] %>%
+                                terra::crop(terra::vect(fire))
+                  post_ras = (post_ras-10000)/10000
+                # Calculate dNBR & replace in pre-fire raster
+                  d_ras = pre_ras['nbr'] - post_ras
+                  names(d_ras) <- 'dNBR'
+                  pre_ras[[1]] <- d_ras
               # Sample rasters
-                full_join(by = join_by(fire, Year, Season, PreBurn, id), 
-                   terra::extract( ndvi_ras2,
-                              pts %>%
-                                select(-PostBurn) %>%
-                                terra::vect() , 
-                              FUN = mean, 
-                              bind = TRUE)  %>%
+                 terra::extract( pre_ras,
+                          pts %>%
+                            select(-PostBurn) %>%
+                            terra::vect() , 
+                          FUN = mean, 
+                          bind = TRUE)  %>%
                   st_as_sf() %>%
                     as_tibble() %>%
-                    select(-geometry) , 
-                terra::extract( d_ras,
-                                pts %>%
-                                  select(-PostBurn) %>%
-                                  terra::vect() , 
-                                FUN = mean, 
-                                bind = TRUE)  %>%
-                  st_as_sf() %>%
-                  as_tibble()  %>%
-                  select(-geometry) ) 
+                    select(-geometry) 
             }
   stopCluster(cl)
   Sys.time() - begin 
 }
 
-  dNBR  %>%
+  # save(BurnIndices, file = './data/BurnIndices.Rdata')
+
+BI_sum <-
+  BurnIndices  %>%
     group_by(Year, Season, fire) %>%
-    summarize(SeverityMean = mean(dNBR), 
-              SeveritySEM = sd(dNBR)/sqrt(n()), 
-              GreenMean = mean(ndvi), 
-              GreenSEM = sd(ndvi)/sqrt(n())) %>%
-    ggplot(aes(x = GreenMean, y = SeverityMean, color = Year)) + theme_bw() +
-      geom_errorbar(aes(ymin = SeverityMean - SeveritySEM, 
-                        ymax = SeverityMean + SeveritySEM)) +
-    geom_errorbarh(aes(xmin = GreenMean - GreenSEM, 
-                       xmax = GreenMean + GreenSEM)) +
+    summarise_at(.vars = vars(dNBR:ndmi),
+                 .funs = c(Mean="mean", 
+                           SEM = function(x) {sd(x)/sqrt(n()) } )) %>%
+    ungroup() 
+
+BI_sum %>%
+    filter(Season == "Spring") %>%
+    select(Year, dNBR_Mean:ndmi_Mean) %>%
+    GGally::ggpairs(aes(color = Year)) 
+
+BI_sum %>%
+  filter(Season == "Summer")
+
+fires %>%
+  filter(Season == 'Summer')
+
+
+  
+
+# Severity vs greenness
+  BI_sum %>%
+      ggplot(aes(x = ndvi_Mean, y = dNBR_Mean, color = Year)) + theme_bw() +
+        geom_errorbar(aes(ymin = dNBR_Mean - dNBR_SEM, 
+                          ymax = dNBR_Mean + dNBR_SEM)) +
+      geom_errorbarh(aes(xmin = ndvi_Mean - ndvi_SEM, 
+                         xmax = ndvi_Mean + ndvi_SEM)) +
+      geom_point() + 
+      geom_smooth(method = 'lm', se = F) +
+      facet_wrap(~Season)
+# Severity vs. moisture content
+  BI_sum %>%
+    ggplot(aes(x = ndmi_Mean, y = dNBR_Mean, color = Year)) + theme_bw() +
+    geom_errorbar(aes(ymin = dNBR_Mean - dNBR_SEM, 
+                      ymax = dNBR_Mean + dNBR_SEM)) +
+    geom_errorbarh(aes(xmin = ndmi_Mean - ndmi_SEM, 
+                       xmax = ndmi_Mean + ndmi_SEM)) +
     geom_point() + 
-    geom_smooth(method = 'lm') +
+    geom_smooth(method = 'lm', se = F) +
     facet_wrap(~Season)
+# Severity vs. moisture stress
+  BI_sum %>%
+    ggplot(aes(x = msi_Mean, y = dNBR_Mean, color = Year)) + theme_bw() +
+    geom_errorbar(aes(ymin = dNBR_Mean - dNBR_SEM, 
+                      ymax = dNBR_Mean + dNBR_SEM)) +
+    geom_errorbarh(aes(xmin = msi_Mean - msi_SEM, 
+                       xmax = msi_Mean + msi_SEM)) +
+    geom_point() + 
+    geom_smooth(method = 'lm', se = F) +
+    facet_wrap(~Season)
+
+
   
   NegSev <-
-  dNBR  %>%
+    BurnIndices  %>%
     group_by(Year, Season, fire) %>%
-    summarize(SeverityMean = mean(dNBR), 
-              SeveritySEM = sd(dNBR)/sqrt(n()), 
-              GreenMean = mean(ndvi), 
-              GreenSEM = sd(ndvi)/sqrt(n())) %>%
+    summarize(SeverityMean = mean(dNBR) ) %>%
     filter(SeverityMean < 0) %>%
     select(fire)
   
