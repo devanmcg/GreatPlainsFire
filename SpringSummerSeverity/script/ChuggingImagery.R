@@ -9,6 +9,13 @@ patches <- st_read(cgrec_gpkg, 'PasturePatches')
 NoFirePts <- st_read(cgrec_gpkg, 'SamplePoints') %>%
               filter(location == 'Refuge')
 
+NoFirePts %>%
+  st_union() %>%
+  st_bbox() %>%
+  st_as_sfc(., crs=4326) %>%
+  ggplot() + theme_void() +
+    geom_sf() 
+
 # Get veg data for unburned pastures
   imagery_dir = 'S:/DevanMcG/Projects/SpringSummerSeverity/sentinel/MultiBand'
   images <- list.files(imagery_dir)
@@ -202,3 +209,40 @@ fires %>%
     select(fire)
   
   fires %>% filter(fire %in% NegSev$fire)
+  
+# Get Landsat data for unburned pastures
+  imagery_dir = 'S:/DevanMcG/Projects/SpringSummerSeverity/landsat/LandsatSeasonal'
+  images <- list.files(imagery_dir)
+  
+  { 
+    begin = Sys.time() 
+    pacman::p_load(foreach, doSNOW)
+    cores = parallel::detectCores()
+    cl <- makeCluster(cores, methods = F, useXDR = F)
+    registerDoSNOW(cl)
+    NoFireTrends <-
+      foreach(i=1:length(images), 
+              .combine = 'bind_rows',
+              .errorhandling = 'remove', 
+              .packages=c('tidyverse', 'sf')) %dopar% {
+                image = images[i]
+                image_path = paste0(imagery_dir, '/', image)
+                ras <- terra::rast(image_path)
+                ras <- ras[[c('ndvi', 'msi','ndmi')]]
+                 terra::extract(ras,
+                               NoFirePts %>%
+                                 select(pasture, sample) %>%
+                                 st_transform(4326) %>%
+                                 terra::vect() , 
+                               FUN = mean, 
+                               bind = TRUE)  %>%
+                  st_as_sf() %>%
+                  as_tibble() %>%
+                  mutate(ImageDate = tools::file_path_sans_ext(image))  %>%
+                  select(ImageDate, pasture, sample, ndvi:ndmi) 
+              }
+    stopCluster(cl)
+    Sys.time() - begin 
+  }
+  # save(NoFireTrends, file = './data/NoFireTrends.Rdata')
+  

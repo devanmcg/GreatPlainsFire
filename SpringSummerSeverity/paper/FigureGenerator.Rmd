@@ -1,0 +1,705 @@
+---
+title: Evaluating an attempt to restore summer fire in the Northern Great Plains
+author: DA McGranahan & JP Angerer??
+output: 
+  html_document:
+    highlight: tango
+---
+
+```{r setup, echo=FALSE, warning=FALSE, message = FALSE}
+knitr::opts_chunk$set(message = FALSE, warning=FALSE, 
+                      echo=FALSE, eval=TRUE, fig.path = '', dev='png' )
+pacman::p_load(tidyverse, cowplot, patchwork, wesanderson)
+  BuGnPal = c( "#67A9CF" ,"#3690C0" ,"#02818A", "#016450")
+  FFgrad = wes_palette("FantasticFox1")[c(3,2,4,5)]
+# load data 
+  load('../data/NoFireIndices.Rdata')
+  load('../data/BurnIndices.Rdata')
+  load('../data/NoFireTrends.Rdata')
+  load('../data/WxData.Rdata')
+# some necessary things
+  seasons <- 
+    tibble(season = c('Spring', 'Summer'), 
+           start = c(as.Date('2024-04-25'), as.Date('2024-08-07')), 
+           end = c(as.Date('2024-05-25'), as.Date('2024-08-27'))) 
+```
+
+```{r}
+LandsatSums <-
+  NoFireTrends  %>%
+    separate(ImageDate, into=c('year', 'month', 'day'), sep = '-') %>%
+    mutate(season = ifelse(month=='04', 'Spring', 'Summer')) %>%
+    pivot_longer(names_to = 'index', 
+                 values_to = 'value', 
+                 cols = c(ndvi:ndmi)) %>%
+    group_by(year, season, pasture, index) %>%
+    summarize(Value = mean(value), 
+              .groups = 'drop') 
+```
+
+# In a nutshell
+
+## Background 
+
+* From 2017-2020, a project was conducted to restore spatially-patchy Rx fire in Central ND
+* Two burning regimes:
+  - 4 x 40-acre, full-patch burns each spring 
+  - 4 x 20-acre, half-patch burns, first half in spring, second half in summer
+* Mixed success in restoring fire: 
+  - All spring burns were completed in each year 
+  - Summer burns only completed in 2/4 years *but not for lack of trying*
+
+## Questions
+
+* Are there biophysical limitations on summer fires? 
+  - *e.g., maybe it can just be too green and/or too wet and/or too humid to burn*
+* Can trends in vegetation and weather explain why summer burns were successful in some years and not in others? 
+  - *If so, maybe one can predict whether a summer burn is worth trying or not, or predicting summer wildfire risk*
+* Potential implications for intentions behind growing season burns vs. pre-European summer fire regimes?
+  - *Folks recognize pre-European fire regimes included considerable summer fire, and talk about greater variability in burn severity with growing-season fire as a biodiversity-friendly reason to burnin the summer. But what if pre-European summer burns were actually quite intense and burned severely because they actually only occurred under drought conditions?*
+
+## Objectives 
+
+* Explore patterns in fuel greenness and fire weather to determine effects on fire effectiveness
+* Identify anomalies and ranges of conditions conducive to prescribed fire
+
+## Data 
+
+Pulled burn severity (NBR) and NDVI from Sentinel-2 imagery for 2017-2020 growing seasons.
+Also pulled historical (1990-2022) NDVI from Landsat for long-term trends. 
+NDVI = Normalized Difference Vegetation Index; Measure of vegetation greenness.
+Data sampled from regular gridded points within burn units. 
+
+Also retrieved historical hourly weather data, 1990-2022, from local mesonet station. 
+
+# Results 
+
+## Vegetation data
+
+```{r ndvi_gg, fig.cap="Sentinel imagery summarized for the study years. A: NDVI data from four adjacent unburned pastures avoids any confounding effects of prescribed burns. X denotes seasons in which burns were not completed. B: Burn severity (dNBR) plotted against fuelbed greenness (NDVI) retrieved from the pre-burn Sentinel-2 image used for pre-fire NBR. Points represent mean for individual prescribed fires with associated standard error; circles and solid trendline indicate spring burns while broken trendline and triangles denote summer burns.", fig.height = 7, fig.width = 5}
+# Get average values for burn seasons 
+p1 <-
+  NoFireIndices %>%
+    group_by(ImageDate, pasture) %>%
+    summarise(NDVI = median(ndvi) , 
+              .groups = 'drop') %>%
+    mutate(ImageDate = as.Date(ImageDate, '%Y-%m-%d'), 
+           Year = lubridate::year(ImageDate), 
+           Year = as.factor(Year), 
+           SampleDate = format(ImageDate, '%m-%d'), 
+           SampleDate = as.Date(SampleDate, '%m-%d'), 
+           season = case_when(
+             between(SampleDate, seasons$start[1], seasons$end[1]) ~ 'Spring',
+             between(SampleDate, seasons$start[2], seasons$end[2]) ~ 'Summer', 
+             TRUE ~ NA ) ) %>%
+    filter(!is.na(season)) %>%
+    group_by(season, Year) %>%
+    summarize(SeasonMean = mean(NDVI), 
+              SeasonSEM = sd(NDVI)/sqrt(n()), 
+              .groups = 'drop') %>%
+    mutate(status = case_when(
+      season == 'Summer' & Year %in% c('2018', '2019') ~ "Not completed", 
+      TRUE ~ "Completed") ) %>%  
+    ggplot(aes(x = season, color = Year)) + theme_bw(14) +
+    geom_errorbar(aes(ymin = SeasonMean - SeasonSEM, 
+                      ymax = SeasonMean + SeasonSEM), 
+                  width = 0.25, lwd = 0.95, 
+                  alpha = 0.5,
+                  position = position_dodge(width = 0.33), 
+                  key_glyph = "point")  +
+    geom_point(aes( y = SeasonMean, 
+                    pch = interaction(status, Year)), 
+               position = position_dodge(width = 0.33), 
+                size = 4, stroke = 2, show.legend = F) +
+    labs(x = 'Burn season', 
+         y = 'NDVI', 
+         ) + 
+    scale_shape_manual(values = c(16, 16, 4, 16, 4, 16)) + 
+   scale_color_manual(values = FFgrad) +  
+    theme(axis.text.x = element_text(color = 'black')    ) +
+    guides(color=guide_legend(override.aes = list(pch=15, alpha = 1, size =4))) 
+p2 <-
+BurnIndices  %>%
+  group_by(Year, Season, fire) %>%
+  summarise_at(.vars = vars(dNBR, ndvi),
+               .funs = c(Mean="mean", 
+                         SEM = function(x) {sd(x)/sqrt(n()) } )) %>%
+  ungroup() %>%
+  ggplot(aes(x = ndvi_Mean, y = dNBR_Mean, color = Year)) + theme_bw(14) +
+  geom_smooth(data = . %>%
+                filter(Season == 'Spring'), 
+              aes(x = ndvi_Mean, y = dNBR_Mean, lty=Season), 
+              method = 'lm', 
+              color = 'black',
+              se = T, alpha = 0.2) +
+    geom_smooth(data = . %>%
+                filter(Season == 'Summer'), 
+              aes(x = ndvi_Mean, y = dNBR_Mean), 
+              method = 'lm', 
+              lty = 2,
+              color = 'black',
+              se = F, alpha = 0.2) +
+  geom_errorbar(aes(ymin = dNBR_Mean - dNBR_SEM, 
+                    ymax = dNBR_Mean + dNBR_SEM)) +
+  geom_errorbarh(aes(xmin = ndvi_Mean - ndvi_SEM, 
+                     xmax = ndvi_Mean + ndvi_SEM)) +
+  geom_point(aes(fill = Year, 
+                 shape = Season), 
+             color = 'black',
+             size = 3) + 
+  scale_shape_manual(values=c(21, 24)) +
+   scale_fill_manual(values = FFgrad) +
+   scale_color_manual(values = FFgrad) +  
+  labs(x = 'Pre-burn NDVI', 
+       y = 'Burn severity (dNBR)') +
+  theme(  legend.position = 'none', 
+          legend.position.inside = c(0.8, 0.85)) 
+
+plot_grid(p1, p2,  labels = "AUTO", 
+          ncol = 1, rel_heights = c(0.8, 1))
+```
+
+```{r green_trends, fig.cap="Study season data (points) plotted within the context of 42-year historical trends (boxplots). X indicates seasons prescribed fires were not completed. A: NDVI data retrieved from Landsat imagery. B: Annual growing season rainfall accummulated by two specific dates associated with the spring and summer burn seasons, respectively.", fig.width = 5, fig.height = 7}
+p3 <-
+LandsatSums %>%
+                            filter(year %in% c(2017:2020), 
+                                   index == 'ndvi') %>%
+                            group_by(year, season) %>%
+                            summarize(Mean = mean(Value),
+                                      SEM = sd(Value) / sqrt(n()),
+                                      .groups = 'drop') %>%
+                            mutate(status = case_when(
+                              season == 'Summer' & 
+                              year %in% c('2018', '2019') ~ "Not completed", 
+                              TRUE ~ "Completed") )%>% 
+  ggplot(aes(x = season)) + theme_bw(14) + 
+      geom_boxplot(data = LandsatSums %>%
+                     filter(index == 'ndvi')  ,
+                 aes( y = Value),
+                 outliers = F,
+                 staplewidth = 0.25) +
+  # geom_errorbar(aes( ymin = Mean - SEM,
+  #                    ymax = Mean + SEM,
+  #                    color = year),
+  #               width = 0.5,
+  #               position = position_dodge(width = 0.25)) +
+         geom_point(#data = , 
+        aes(y = Mean, 
+                color = year, shape = status), 
+             position = position_dodge(width = 0.25), 
+             size = 4, stroke = 3, show.legend = T) + 
+    labs(x = 'Burn season', y = 'NDVI') + 
+       scale_color_manual("Year", values = FFgrad) + 
+  scale_shape_manual(values = c(16, 4), guide = 'none') +
+
+  theme(axis.text.x = element_text(color = 'black'), 
+        panel.grid.major.x = element_blank() ) +
+    guides(color=guide_legend(override.aes = list(pch=15, size =4)))
+p4 <- 
+    WxData$Rainfall %>% 
+    filter(month(date) %in% c(04:09)) %>%
+    separate(date, into = c('Year', 'Month', 'Day'),sep = '-') %>%
+    group_by(Year) %>%
+    mutate(CumPrecip = cumsum(Rainfall), 
+           Month = recode(Month, '05' ="May", '08'='Aug'), 
+           Month = paste0(Month, ' ', Day)) %>%
+    filter(Month %in% c('May 15', 'Aug 01' )) %>%
+    mutate(Month = fct_rev(Month)) %>%
+    ggplot() + theme_bw(14) + 
+      geom_boxplot(aes(x = Month, y = CumPrecip),
+                   outliers = F,
+                   staplewidth = 0.25) +
+    geom_point(data = . %>%
+                 filter(as.numeric(Year) %in% c(2017:2020)) %>%
+                  mutate(status = case_when(
+                    Month == 'Aug 01' & 
+                      Year %in% c('2018', '2019') ~ "Not completed", 
+                    TRUE ~ "Completed") ), 
+            aes(x = Month, y = CumPrecip,
+                color = Year, shape = status), 
+            position = position_dodge(width = 0.25), 
+            size = 4, stroke = 3, show.legend = T) + 
+  labs(x = 'Date', y = 'Cumulative Rainfall (mm)') + 
+  scale_shape_manual(values = c(16, 4), guide = 'none') +
+  scale_color_manual("Year", values = FFgrad) + 
+  theme(axis.text.x = element_text(color = 'black'), 
+        panel.grid.major.x = element_blank() ) +
+  guides(color=guide_legend(override.aes = list(pch=15, size =4)))
+
+p3 / p4 +
+  patchwork::plot_layout(
+    guides = "collect",
+    nrow = 2
+  ) +
+  patchwork::plot_annotation(
+    tag_levels = "A"
+  ) &
+  theme(legend.position = "right", legend.direction = "vertical")
+```
+
+## Weather data 
+
+```{r weather, fig.cap="Four fire weather variables plotted by burn day values (open triangles), study season means (open circles and X for seasons without completed burns), and 42-year historical trends (boxplots).", fig.height = 9}
+RainyDays <- 
+   WxData$Rainfall %>%
+      filter( ! is.na(season), Rainfall > 0.1) 
+# Seasonal trends over time   
+  WxData$HourlyWx %>%
+    filter(! date %in% RainyDays$date, # remove rainy days with no chance of burning
+           ! is.na(season)) %>%
+    group_by(Year, date, season) %>%
+    summarise_at(.vars = vars(c(DewPoint, RelHum, WindSpeed,VPD)),
+                 .funs = c("mean")) %>%
+    ungroup() %>%
+    pivot_longer(names_to = 'variable', 
+                 values_to = 'value', 
+                 cols = DewPoint:VPD) %>%
+    group_by(Year, season, variable) %>%
+    summarise(Value = mean(value), 
+              .groups = 'drop') %>%
+    mutate(variable = recode(variable, 
+                             'DewPoint' = 'Dew Point (°C)', 
+                             'RelHum' = 'Relative Humidity (%)', 
+                             'VPD' = 'Vapor Pressure Deficit', 
+                             'WindSpeed' = 'Wind speed (m/s)') , 
+           Year = as.character(Year), 
+           season = fct_rev(season)) %>%
+    ggplot() + theme_bw(16) + 
+      geom_boxplot( aes(x=season, 
+                       y = Value),
+                   outliers = F, size = 0.75,
+                   staplewidth = 0.25) +
+      geom_point(data = . %>%
+                   filter(Year %in% c(2017:2020)) %>%
+                   mutate(status = case_when(
+                     season == 'Summer' & Year %in% c('2018', '2019') ~ "Not completed", 
+                     TRUE ~ "Completed") ) , 
+                 aes(x = season, y = Value, 
+                     color = Year, shape = status), 
+                 position = position_nudge(x = -.2), 
+                  fill = 'grey90', 
+                 size = 3, stroke = 2, show.legend = T) + 
+    geom_point(data = WxData$BurnDayWx , 
+               aes(x = season, y = value, color =Year), 
+               position = position_nudge(x = +.2), 
+               shape = 24, fill = 'grey90', 
+               size = 3, stroke = 2,
+                show.legend = F) + 
+      labs(x = 'Burn season', y = 'Weather variable value') + 
+      facet_wrap(~variable, scales = 'free_x', ncol = 1)  +
+      scale_shape_manual(values = c(21, 4), guide = 'none') +
+    scale_color_manual(values = FFgrad) +  
+      theme(axis.text.y = element_text(color = 'black', angle = 45, hjust = 0.5), 
+            panel.grid.major.y = element_blank() , 
+            strip.text = element_text(face='bold'), 
+            strip.background = element_rect(fill = '#A1D99B')) +
+    coord_flip() + 
+      guides(color=guide_legend(override.aes = list(pch=15, size =4)))
+```
+
+# Supplemenary Info
+
+## Seasonal trends
+
+Summer fires were successful in 2017 and 2020. 
+Vegetation in both years was less green and rainfall lower.
+
+```{r ndvi_trend, eval = TRUE, fig.cap="Green shaded areas span the first and last dates of completed burns in the spring and summer.", fig.height = 4, fig.width = 8}
+NoFireIndices %>%
+  group_by(ImageDate, pasture) %>%
+    summarise(Mean = mean(ndvi), 
+              SEM = sd(ndvi)/sqrt(n()), 
+              .groups = 'drop') %>%
+  mutate(ImageDate = as.Date(ImageDate, '%Y-%m-%d'), 
+         Year = lubridate::year(ImageDate), 
+         Year = as.factor(Year), 
+         SampleDate = format(ImageDate, '%m-%d'), 
+         SampleDate = as.Date(SampleDate, '%m-%d') ) %>%
+  filter(Year != 2016) %>%
+ggplot(aes(x = SampleDate, 
+           color = Year, 
+           fill = Year, 
+           group = interaction(pasture, Year))) + theme_bw(14) +
+  geom_rect(data= seasons, inherit.aes = FALSE,
+              aes(xmin=start, xmax=end, ymin=-Inf, ymax=+Inf), 
+              fill='#A1D99B', alpha=0.5) +
+  geom_smooth(aes(y = Mean, group = Year),
+              se = T,
+              level = 0.99) +
+  geom_errorbar(aes(ymin = Mean - SEM, 
+                    ymax = Mean + SEM),
+                alpha = 0.5) +
+  geom_line(aes(y = Mean),
+             alpha = 0.5) +
+  labs(x = 'Image date', y = 'NDVI') + 
+    scale_fill_manual(values = FFgrad) + 
+  scale_color_manual(values = FFgrad) + 
+  scale_x_date( date_breaks = 'month', 
+                date_labels = '%b-%d', 
+                minor_breaks = NULL) 
+```
+
+```{r precip_trend, eval = TRUE, fig.cap="Thick black line shows smoothed 40-yr trend. Green shaded areas span the first and last dates of completed burns in the spring and summer.", fig.height = 4, fig.width = 8}
+  WxData$Rainfall %>% 
+    filter(month(date) %in% c(04:09)) %>%
+    separate(date, into = c('Year', 'Month', 'Day'),sep = '-') %>%
+    group_by(Year) %>%
+    mutate(CumPrecip = cumsum(Rainfall)) %>%
+    ggplot(aes(x = day)) + theme_bw(14) +
+    geom_rect(data= seasons, inherit.aes = FALSE,
+              aes(xmin=start, xmax=end, ymin=-Inf, ymax=+Inf), 
+              fill='#A1D99B', alpha=0.5) +
+    geom_line(aes(y = CumPrecip, group = Year),
+              color = 'grey40', 
+              alpha = 0.5) +
+    geom_smooth(aes(y = CumPrecip),
+                se = F,
+                color = 'black',
+                size = 1,
+                level = 0.99) +
+    geom_line(data = . %>%
+                filter(as.numeric(Year) %in% c(2017:2020)) , 
+              aes(y = CumPrecip, 
+                  color = Year,
+                  group = Year),
+              size = 2) +
+    labs(x = 'Day of year', y = 'Cumulative rainfall (mm)') + 
+    scale_fill_manual(values = FFgrad) + 
+    scale_color_manual(values = FFgrad) + 
+    scale_x_date( date_breaks = 'month', 
+                  date_labels = '%b-%d', 
+                  minor_breaks = NULL)
+```
+
+```{r veg_trends, eval = FALSE, fig.cap="Blue shaded areas span the first and last dates of completed burns in the spring and summer.", fig.height = 8, fig.width = 10}
+NoFireIndices %>%
+  pivot_longer(names_to = 'index', 
+               values_to = 'value', 
+               cols = c(ndvi:ndmi)) %>%
+  group_by(ImageDate, pasture, index) %>%
+    summarise(Mean = mean(value), 
+              SEM = sd(value)/sqrt(n()), 
+              .groups = 'drop') %>%
+  mutate(ImageDate = as.Date(ImageDate, '%Y-%m-%d'), 
+         Year = lubridate::year(ImageDate), 
+         Year = as.factor(Year), 
+         SampleDate = format(ImageDate, '%m-%d'), 
+         SampleDate = as.Date(SampleDate, '%m-%d'), 
+         index = toupper(index), 
+          index = fct_rev(index)) %>%
+  filter(Year != 2016) %>%
+ggplot(aes(x = SampleDate, 
+           color = Year, 
+           fill = Year, 
+           group = interaction(pasture, Year))) + theme_bw(14) +
+  geom_rect(data= seasons, inherit.aes = FALSE,
+              aes(xmin=start, xmax=end, ymin=-Inf, ymax=+Inf), 
+              fill='#A1D99B', alpha=0.5) +
+  geom_smooth(aes(y = Mean, group = Year),
+              se = T,
+              level = 0.99) +
+  geom_errorbar(aes(ymin = Mean - SEM, 
+                    ymax = Mean + SEM),
+                alpha = 0.5) +
+  geom_line(aes(y = Mean),
+             alpha = 0.5) +
+  labs(x = 'Image date', y = 'Index value') + 
+  facet_wrap(~index, ncol=1, scale = 'free_y') +
+    scale_fill_manual(values = FFgrad) + 
+  scale_color_manual(values = FFgrad) + 
+  scale_x_date( date_breaks = 'month', 
+                date_labels = '%b-%d', 
+                minor_breaks = NULL) 
+```
+
+```{r veg_by_season, eval = FALSE, fig.cap="Data summarized by year from shaded blue ranges above.", fig.height = 4, fig.width = 10}
+# Get average values for burn seasons 
+  NoFireIndices %>%
+    pivot_longer(names_to = 'index', 
+                 values_to = 'value', 
+                 cols = c(ndvi:ndmi)) %>%
+    group_by(ImageDate, pasture, index) %>%
+    summarise(Median = median(value) , 
+              .groups = 'drop') %>%
+    mutate(ImageDate = as.Date(ImageDate, '%Y-%m-%d'), 
+           Year = lubridate::year(ImageDate), 
+           Year = as.factor(Year), 
+           SampleDate = format(ImageDate, '%m-%d'), 
+           SampleDate = as.Date(SampleDate, '%m-%d'), 
+           season = case_when(
+             between(SampleDate, seasons$start[1], seasons$end[1]) ~ 'Spring',
+             between(SampleDate, seasons$start[2], seasons$end[2]) ~ 'Summer', 
+             TRUE ~ NA ) ) %>%
+    filter(!is.na(season)) %>%
+    group_by(season, Year, index) %>%
+    summarize(SeasonMean = mean(Median), 
+              SeasonSEM = sd(Median)/sqrt(n()), 
+              .groups = 'drop') %>%
+    mutate(status = case_when(
+      season == 'Summer' & Year %in% c('2018', '2019') ~ "Not completed", 
+      TRUE ~ "Completed"), 
+          index = toupper(index), 
+          index = fct_rev(index)) %>%
+    ggplot(aes(x = season, y = SeasonMean, color = Year)) + theme_bw(14) +
+    geom_errorbar(aes(ymin = SeasonMean - SeasonSEM, 
+                      ymax = SeasonMean + SeasonSEM), 
+                  width = 0.25, lwd = 0.95, 
+                  position = position_dodge(width = 0.33), 
+                  key_glyph = "point")  +
+    geom_point(aes(pch = interaction(status, Year)), 
+               position = position_dodge(width = 0.33), 
+                size = 4, stroke = 2, show.legend = F) +
+    labs(x = 'Burn season', 
+         y = 'Index value', 
+         caption = 'X = Year/season in which burns were not completed') + 
+    scale_shape_manual(values = c(16, 16, 4, 16, 4, 16)) + 
+    facet_wrap(~index, ncol = 3, scale = "free") +
+    theme(axis.text.x = element_text(color = 'black')) +
+    guides(color=guide_legend(override.aes = list(pch=15, size =4))) 
+```
+
+```{r sev_veg, eval = FALSE, fig.cap="Vegetation indices pulled from closest pre-burn image, same as pre-burn NBR.", fig.height = 3.8, fig.width = 10}
+BurnIndices  %>%
+  pivot_longer(names_to = 'name', 
+               values_to = 'index', 
+               cols = c(ndvi, msi, ndmi)) %>%
+  group_by(Year, Season, fire, name) %>%
+  summarise_at(.vars = vars(dNBR, index),
+               .funs = c(Mean="mean", 
+                         SEM = function(x) {sd(x)/sqrt(n()) } )) %>%
+  ungroup() %>%
+  mutate(name = toupper(name), 
+         name = fct_rev(name)) %>% 
+  filter(Season == "Spring") %>%
+  ggplot(aes(x = index_Mean, y = dNBR_Mean, color = Year)) + theme_bw(14) +
+  geom_smooth(aes(x = index_Mean, y = dNBR_Mean), 
+              method = 'lm', 
+              color = 'black',
+              se = T, alpha = 0.2) +
+  geom_errorbar(aes(ymin = dNBR_Mean - dNBR_SEM, 
+                    ymax = dNBR_Mean + dNBR_SEM)) +
+  geom_errorbarh(aes(xmin = index_Mean - index_SEM, 
+                     xmax = index_Mean + index_SEM)) +
+  geom_point() + 
+  labs(x = 'Pre-burn index value', 
+       y = 'Burn severity (dNBR)') + 
+  geom_smooth(method = 'lm', se = F) +
+  facet_wrap(~name, scales = 'free')
+```
+
+```{r, eval = FALSE}
+full_join(by = 'fire', 
+fires %>%
+  as_tibble() %>%
+  filter(Year == '2018') %>%
+  select(fire, PreBurn), 
+
+BurnIndices  %>%
+  pivot_longer(names_to = 'name', 
+               values_to = 'index', 
+               cols = c(ndvi, msi, ndmi)) %>%
+  group_by(Year, Season, fire, name) %>%
+  summarise_at(.vars = vars(dNBR, index),
+               .funs = c(Mean="mean", 
+                         SEM = function(x) {sd(x)/sqrt(n()) } )) %>%
+  ungroup() %>%
+  filter(Year == '2018') %>%
+  select(fire, name, dNBR_Mean, index_Mean) %>%
+  pivot_wider(names_from = name, 
+              values_from = index_Mean) ) %>%
+  rename(dNBR = dNBR_Mean) %>%
+  arrange(desc(msi)) 
+```
+
+
+## Historical trends 
+
+```{r eval = FALSE}
+LandsatSums %>%
+  filter(year %in% c(2017:2020)) %>%
+  group_by(year, season, index) %>%
+  summarize(Mean = mean(Value),
+            SEM = sd(Value)/sqrt(n()), 
+            .groups = 'drop') %>%
+  mutate(status = case_when(
+    season == 'Summer' & year %in% c('2018', '2019') ~ "Not completed", 
+    TRUE ~ "Completed"), 
+    index = toupper(index), 
+    index = fct_rev(index) ) %>%
+    ggplot(aes(x=season)) + theme_bw(14) + 
+    geom_boxplot(data = LandsatSums %>% mutate(index = toupper(index), 
+                                               index = fct_rev(index)),
+                         aes( y = Value),
+                         outliers = F, 
+                 staplewidth = 0.25) +
+    geom_point(aes(y = Mean, color = year, shape = status), 
+               position = position_dodge(width = 0.25), 
+               size = 3, stroke = 2, show.legend = F) + 
+    facet_wrap(~index, scales = 'free_y')  +
+  scale_shape_manual(values = c(16, 4)) +
+  theme(axis.text.x = element_text(color = 'black'), 
+        panel.grid.major.x = element_blank() )
+```
+
+```{r }
+StudySums <- 
+  LandsatSums %>%
+    filter(year %in% c(2017:2020)) %>%
+    group_by(year, season, index) %>%
+    summarize(Mean = mean(Value),
+              SEM = sd(Value)/sqrt(n()), 
+              .groups = 'drop') %>%
+    mutate(status = case_when(
+      season == 'Summer' & year %in% c('2018', '2019') ~ "Not completed", 
+      TRUE ~ "Completed"), 
+      index = toupper(index), 
+      index = fct_rev(index) ) 
+
+HistoricalSpectralData <- 
+  bind_rows(
+  LandsatSums %>%
+  filter(year %in% c(1990:1999))%>% 
+  mutate(range = '1990-1999', 
+         index = toupper(index), 
+         index = fct_rev(index)), 
+  LandsatSums %>%
+    filter(year %in% c(2012:2022))%>% 
+    mutate(range = '2012-2022', 
+           index = toupper(index), 
+           index = fct_rev(index)), 
+  LandsatSums %>%
+    mutate(range = '1990-2022', 
+           index = toupper(index), 
+           index = fct_rev(index)) )
+```
+
+```{r historical_ndvi, eval = FALSE, fig.width = 7, fig.height =3}
+  ggplot() + theme_bw(14) + 
+  geom_boxplot(data = HistoricalSpectralData  %>% filter(index == 'NDVI'),
+               aes(x=season, 
+                   y = Value),
+               outliers = F, 
+               staplewidth = 0.25) +
+  # geom_errorbar(aes( ymin = Mean - SEM, 
+  #                    ymax = Mean + SEM, 
+  #                    color = year), 
+  #               width = 0.5, 
+  #               position = position_dodge(width = 0.25)) + 
+  geom_point(data = StudySums %>% filter(index == 'NDVI'), 
+            aes(x = season, y = Mean, 
+                color = year, shape = status), 
+             position = position_dodge(width = 0.25), 
+             size = 3, stroke = 2, show.legend = T) + 
+    labs(x = 'Burn season', y = 'NDVI') + 
+  facet_wrap(~range)  +
+  scale_shape_manual(values = c(16, 4), guide = 'none') +
+    scale_color_manual(values = FFgrad) +
+  theme(axis.text.x = element_text(color = 'black'), 
+        panel.grid.major.x = element_blank() ) +
+    guides(color=guide_legend(override.aes = list(pch=15, size =4)))
+```
+
+```{r historical_phenology, eval = TRUE, fig.width = 8, fig.height =11.5}
+WxData$HourlyWx %>%
+  filter(! date %in% RainyDays$date, # remove rainy days with no chance of burning
+         ! is.na(season)) %>%
+  group_by(Year, date, season) %>%
+  summarise_at(.vars = vars(c(DewPoint, RelHum, WindSpeed,VPD)),
+               .funs = c("mean")) %>%
+  ungroup() %>%
+  pivot_longer(names_to = 'variable', 
+               values_to = 'value', 
+               cols = DewPoint:VPD) %>%
+  group_by(Year, season, variable) %>%
+  summarise(Value = mean(value), 
+            .groups = 'drop') %>%
+  mutate(Year = as.character(Year), 
+         #season = fct_rev(season), 
+         period = case_when(
+           Year %in% c(1990:1999) ~  '1990-1999', 
+           Year %in% c(2012:2022) ~  '2012-2022', 
+           TRUE ~ NA
+         )) %>%
+  filter(!is.na(period)) %>%
+  bind_rows(WxData$Rainfall %>% 
+              filter(month(date) %in% c(04:09)) %>%
+              separate(date, into = c('Year', 'Month', 'Day'),sep = '-') %>%
+              group_by(Year) %>%
+              mutate(CumPrecip = cumsum(Rainfall), 
+                     Month = recode(Month, '05' ="May", '08'='Aug'), 
+                     season = paste0(Month, ' ', Day)) %>%
+              ungroup() %>%
+              filter(season %in% c('May 15', 'Aug 01' )) %>%
+              mutate(season = ifelse(season == 'May 15', 'Spring', 'Summer'), 
+                     period = case_when(
+                       Year %in% c(1990:1999) ~  '1990-1999', 
+                       Year %in% c(2012:2022) ~  '2012-2022', 
+                       TRUE ~ NA
+                     ) )  %>%
+              filter(!is.na(period)) %>%
+              select(Year, season, CumPrecip, period) %>%
+              pivot_longer(names_to = 'variable', 
+                           values_to = 'Value', 
+                           cols = CumPrecip))  %>%
+  bind_rows(HistoricalSpectralData  %>% 
+              select(-pasture) %>%
+              filter(index == 'NDVI', 
+                     range != '1990-2022') %>%
+              rename(Year = year, period = range, variable = index)
+            ) %>%
+  mutate( variable = factor(variable, levels = c('NDVI', 'CumPrecip', 'DewPoint', 
+                                                 'RelHum', 'VPD', 'WindSpeed')), 
+          variable = recode(variable, 
+                           'NDVI' = "Fuelbed\ngreenness\n(NDVI)", 
+                           'CumPrecip' = 'Cumulative\nrainfall\n(mm)',
+                           'DewPoint' = 'Dew\nPoint\n(°C)', 
+                           'RelHum' = 'Relative\nHumidity\n(%)', 
+                           'VPD' = 'Vapor\nPressure\nDeficit', 
+                           'WindSpeed' = 'Wind\nspeed\n(m/s)'), 
+          period = recode(period, '1990-1999' = '1990-99', '2012-2022' = '2012-22')) %>%
+  ggplot() + theme_bw(16) + 
+  geom_hline(data = . %>%
+               filter(as.numeric(Year) %in% c(2017:2020)) %>%
+               mutate(status = case_when(
+                 season == 'Summer' & 
+                   Year %in% c('2018', '2019') ~ "Not completed", 
+                 TRUE ~ "Completed") ) %>%
+               group_by(variable, Year, season, status) %>%
+               slice(1) , 
+             aes(yintercept = Value,
+                 color = Year, lty = status), 
+             lwd = 1 ) + 
+  geom_boxplot(aes(x=period, 
+                   y = Value),
+               outliers = F, 
+               staplewidth = 0.25) +
+  labs(x = 'Historical period', y = ' ') + 
+  facet_grid(variable~season, scales = "free_y")  +
+  scale_linetype_manual("Burn status", values = c(1,2)) +
+  scale_color_manual("Study year", values = FFgrad) +
+  theme(axis.text.x = element_text(color = 'black'), 
+        panel.grid.major.x = element_blank() , 
+        strip.text.y = element_text(angle = 0), 
+        strip.background = element_rect(fill = '#A1D99B')) 
+```
+
+```{r eval = FALSE}
+HistoricalSpectralData  %>% 
+  filter(index == 'NDVI', 
+         ! is.na(Value), 
+         range != '1990-2022') %>%
+  group_by(season, range) %>%
+  summarise(boxplot= list(setNames(boxplot.stats(Value)$stats,                                      c('bottom_whisker','bottom_hinge','median','top_hinge','top_whisker'))), 
+              .groups = 'drop') %>%
+    unnest_wider(boxplot) %>%
+  mutate(across(c(bottom_whisker:top_whisker), ~ round(., 2)) ) %>%
+  pander::pander()
+  #   summarise(across(Value, 
+  #                    list(min=min, Q1=~quantile(., probs = 0.25),
+  #                         median=median, Q3=~quantile(., probs = 0.75),
+  #                         max=max),  
+  #                    .names = "{.fn}"), 
+  #             .groups = 'drop') %>%
+  # mutate(across(c(min:max), ~ round(., 2)) ) %>%
+  # pander::pander()
+```

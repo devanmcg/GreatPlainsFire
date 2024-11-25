@@ -1,6 +1,6 @@
-pacman::p_load(tidyverse, sf, rgee)
+pacman::p_load(tidyverse, sf, rgee, rgeeExtra)
 
-ee_Initialize(drive = TRUE)
+
 
 lem <- read_sf('C:/Users/devan.mcgranahan/USDA/Rangeland responses to fire - Fire x herbivory/Lemonade Fire/mapping/SpatialData/LemonadePerimeter', 
                'LemonadePerimeter') %>%
@@ -24,9 +24,9 @@ ee$Image$Extra_spectralIndex(c("NDVI", "NDREI", 'NDMI', 'MSAVI', 'SAVI'))
   
   burns_ee <- ee$ImageCollection("COPERNICUS/S2_SR")$
                 filterBounds(lem_box_ee) %>%
-                ee$ImageCollection$filterDate('2022-09-01', '2022-09-30') %>% 
-                ee$ImageCollection$Extra_preprocess() %>%
-                ee$Image$Extra_spectralIndex(c("NBR", "NBR2", 'CSI')) %>% 
+                ee$ImageCollection$Extra_closest("2018-09-22",  2, "week") %>% 
+                #ee$ImageCollection$Extra_preprocess() %>%
+                #ee$Image$Extra_spectralIndex(c("NBR", "NBR2", 'CSI')) %>% 
                 ee$ImageCollection$toBands() 
 names(burns_ee) <- c("NBR", "NBR2", 'CSI')
 burns_ee$bandNames()$getInfo()

@@ -49,13 +49,21 @@ rgeeExtra::extra_Initialize()
       st_bbox() %>%
       st_as_sfc(., crs=4326) %>%
       sf_as_ee()
+    
+    st_read(cgrec_gpkg, 'SamplePoints') %>%
+      filter(location == 'Refuge')  %>%
+      st_transform(4326) %>%
+      st_union() %>%
+      st_bbox() %>%
+      st_as_sfc(., crs=4326) %>%
+      write_sf('./data/AOI/refuge.shp')
 
 # Turn on GEE connection
   #ee_Initialize(drive = TRUE)
   ee$Initialize(project='ee-devanmcg')
   extra_Initialize()
   
-  years = 1990:2023
+  years = 2019:2023
   seasons = tibble(season = c('spring', 'summer'), 
                    start = c('04-20', '07-20'), 
                    end = c('06-10', '09-10') ) 
@@ -68,38 +76,101 @@ rgeeExtra::extra_Initialize()
   for(s in 1:2) {
     StartDate = paste0(years[y], '-', slice(seasons, s)$start )
     EndDate = paste0(years[y], '-', slice(seasons, s)$end )
-    collection <- case_when(
+    ImageCol <- case_when(
       years[y] %>% between(collections$start[1], collections$end[1]) ~ collections$ee_tag[1], 
       years[y] %>% between(collections$start[2], collections$end[2]) ~ collections$ee_tag[2],
       years[y] %>% between(collections$start[3], collections$end[3]) ~ collections$ee_tag[3]
     )
-  spectra_ee_image <- 
-    ee$ImageCollection(collection)$
-    filterBounds(refuge_ee) %>%
-    ee$ImageCollection$filterDate(StartDate, EndDate) %>%
-    ee$ImageCollection$Extra_preprocess() %>%
-    ee$Image$Extra_maskClouds(prob = 75,buffer = 300,cdi = -0.5) %>%
-    ee$Image$Extra_spectralIndex(c("NDVI",'NDMI',"MSI")) %>%
-    ee$ImageCollection$toBands() 
-    ImageDate <- spectra_ee_image$bandNames()$getInfo()[1] %>% str_sub(13,20)
-    FileDate = paste(str_sub(ImageDate, 1,4), str_sub(ImageDate, 5,6), str_sub(ImageDate, 7,8), sep = '_')
-    names(spectra_ee_image) <- c("NDVI",'NDMI',"MSI")
-
-   ee_as_rast(
-      image = spectra_ee_image,
-      region = refuge_ee, 
-      dsn = paste0('./landsat/', paste0('refuge', FileDate)),
-      timePrefix = FALSE,
-      via = "drive", 
-      scale = 30 )
-    ee_as_rast(
-      image = spectra_ee_image,
-      region = CGREC_NorthPBG, 
-      dsn = paste0('./landsat/', paste0('CGREC_North_', FileDate)),
-                   timePrefix = FALSE,
-                   via = "drive", 
-                   scale = 30 )
+    
+    cloudMaskL457 <- function(image) {
+                            qa <- image$select("pixel_qa")
+                                  cloud <- qa$bitwiseAnd(32L)$
+                                            And(qa$bitwiseAnd(128L))$
+                                            Or(qa$bitwiseAnd(8L))
+                mask2 <- image$mask()$reduce(ee$Reducer$min())
+                image <- image$updateMask(cloud$Not())$updateMask(mask2)
+                image$normalizedDifference(list("B4", "B3"))
+    }
+    
+    sd = ee$Date(StartDate) 
+    sd$get(value) $value()
+    
+    sd$format('yyyy-MM-dd')$getInfo()
+    
+    # Landsat 4-7: NDVI = (Band 4 – Band 3) / (Band 4 + Band 3)
+    # Landsat 8-9: NDVI = (Band 5 – Band 4) / (Band 5 + Band 4)
+    
+    # Grab collection and filter clouds
+     comp <- 
+        ee$ImageCollection(ImageCol)$
+        filterBounds(refuge_ee) %>%
+        ee$ImageCollection$filterDate(StartDate, EndDate) %>%
+        ee$Image$Extra_maskClouds(prob = 75,buffer = 300,cdi = -0.5) %>%
+        ee$ImageCollection$mean() %>%
+        ee$Image$select(c("SR_B5", "SR_B4")) 
+   
+      comp_sc <- (comp * 0.0000275) - 0.2
+      ndvi = comp_sc$normalizedDifference(c("SR_B5", "SR_B4"))
+   
+   ee_as_stars(
+     image = ndvi,
+     region = refuge_ee, 
+     dsn = paste0('./landsat/', paste0('refuge_', years[y], '_', seasons$season[s])),
+     timePrefix = FALSE,
+     via = "drive", 
+     scale = 30 )
+  
+   # Visualize squared NDVI on map
+   Map$centerObject(ndvi)
+   Map$addLayer(
+     eeObject = ndvi, 
+     visParams = list(
+       min = -1, 
+       max = 1, 
+       palette = c("brown", "yellow", "green")
+     ),
+     name = "NDVI"
+   )
+  
+  task_img <- ee_image_to_drive(
+    image = ndvi,
+    fileFormat = "GEO_TIFF",
+    region = refuge_ee,
+    fileNamePrefix = paste0('refuge_', years[y], '_', seasons$season[s])
+  )
+  
+  task_img$start()
+  ee_monitoring(task_img)
+   
+   names(img)
       
+     img_sc <- (img * 0.0000275) - 0.2
+     
+     ndvi <- ((img_sc[["SR_B5"]] - img_sc[["SR_B4"]]) / (img_sc[["SR_B5"]] + img_sc[["SR_B4"]]))
+     names(ndvi) <- "NDVI"
+     
+     img$bandNames()$getInfo()
+    
+    ndvi$bandNames()$getInfo()
+    
+
+    tif = "C:/Users/devan.mcgranahan/Downloads/refuge_2019_spring_2024_10_28_18_04_37.tif"
+    
+    tif = "C:/Users/devan.mcgranahan/Downloads/refuge_2019_comp.tif"
+    ras <- terra::rast(tif)
+    names(ras) <- c('B5', 'B4')
+    ras <-(ras * 0.0000275) - 0.2
+    
+    terra::plot(ras)
+    
+    ndvi <- ((ras[["B5"]] - ras[["B4"]]) / (ras[["B5"]] + ras[["B4"]]))
+    names(ndvi) <- "NDVI"
+    
+    
+    terra::plot(ndvi)
+    
+   
+
   
   
 # Download Image Collections as .tif
@@ -177,4 +248,21 @@ rgeeExtra::extra_Initialize()
     ggplot() + theme_void() + 
       geom_stars(data = burn_rast %>% st_as_stars() ) 
     
+    dates <- vector() 
+    
+    for(i in 1:31) {
+    '1991-04-20' %>%
+      as.Date('%Y-%m-%d') %>%
+      + years(i) %>%
+      c(dates) -> dates }
+    
+    for(i in 1:31) {
+      '1991-07-20' %>%
+        as.Date('%Y-%m-%d') %>%
+        + years(i) %>%
+        c(dates) -> dates }
+    
+    arrange(desc(dates))
+    
+    sort(dates)
   
