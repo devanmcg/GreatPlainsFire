@@ -1,5 +1,6 @@
 ---
 title: Evaluating an attempt to restore summer fire in the Northern Great Plains
+subtitle: 'Running head: Summer burning in the Northern Plains'
 author:
 - Devan Allen McGranahan* and Jay P. Angerer
 - Livestock and Range Research Laboratory, USDA Agricultural Research Service, Miles City, Montana, USA 
@@ -16,6 +17,9 @@ always_allow_html: true
 
 
 
+**Author contributions:** Conception, analysis, writing: DAM; Programming and editing: JPA
+
+\newpage 
 # Abstract
 
 There is growing interest in diversifying human-managed fire regimes. 
@@ -28,6 +32,11 @@ What little phenological change seems to have occurred at the study location---s
 Overall, we found little evidence that successful summer burns were anomalies, and conclude that it is reasonable for managers to incorporate late growing season fire into prescribed fire programs with the caveat that some summers will simply be too wet and/or too green to burn.
 
 **Keywords:** Burn severity; Phenology; Seasonality of fire; Pyrodiversity
+
+# Implications for practice 
+
+* Successful Rx fire in the summer is likely the norm, not the exception. 
+* At least at this specific research station, there is little evidence that fuel and weather conditions have changed over 42 years except for slightly greener spring fuels and lower relative humidity, which might cancel each other out. 
 
 # Introduction 
 
@@ -68,7 +77,7 @@ Vegetation at the Center is typical northern mixed-grass prairie with substantia
 In 2017, a research project began in which 12, 65-ha pastures were assigned to one of each of three management strategies (N = 4), none of which involved internal fences: continuous grazing, in which livestock had unhindered access to pastures with no additional disturbance; spring-only patch burning, in which a 16-ha patch was burned each spring and livestock allowed unhindered access; and spring-summer patch burning, in which half of a 16-ha patch was burned in the spring, and the second half scheduled to be burned in the summer. 
 All pastures were stocked with approximately 22 Angus *Bos taurus* cow-calf pairs from May-October; see @duquette2022a for a complete description of the study location and experimental design. 
 
-A total of 40 prescribed fires were conducted over four years, 2017--2020. 
+Forty prescribed fires were conducted over four years, 2017--2020. 
 All 32 planned spring burns were completed, between 25 April and 25 May. 
 Only eight of 16 planned summer burns were completed: 4 in 2017, and 4 in 2020, between 13-25 August. 
 Burn units were surrounded with plowed mineral firebreaks and ignitions varied between backing and head fires, and interior strip ignitions, with handheld drip torches. 
@@ -77,15 +86,16 @@ Burn units were surrounded with plowed mineral firebreaks and ignitions varied b
 
 Two types of data are presented here: remotely-sensed imagery from earth observation satellites, and weather data logged by the Center's mesonet weather station. 
 We used remotely-sensed data from two separate sources. 
-For the study period alone, 2017--2020, we used the European Space Agency's Sentinel-2 mission, which provides hyperspectral imagery at 10 $\times$ 10 m resolution at 5-10 day intervals. 
-For historical context, 1990--2022, we used Landsat resources from the US Geological Survey, which provides hyperspectral imagery at 30 $\times$ 30 m resolution at 7-14 day intervals; Sentinel-2 only began in 2016, while the first Landsat mission launched in the mid 1980s. 
+For the study period alone, 2017--2020, we used the European Space Agency's Sentinel-2 mission, multispectral imagery at 10 $\times$ 10 m resolution in the visible and near-infrared region and 20 $\times$ 20 m in the red-edge and shortwave infrared regions.
+Data are collected and produced at 5-10 day intervals. 
+For historical context, 1990--2022, we used Landsat resources from the US Geological Survey (Landsat 5, 7, and 8 Level 2, Collection 2, Tier 1 Surface Reflectance), which provide multispectral imagery at 30 $\times$ 30 m resolution at 7-14 day intervals; Sentinel-2 only began in 2016, while the first Landsat 5 mission launched in the mid 1980s. 
 
-Remotely-sensed data consisted of two indices: the Normalized Burn Ratio (NBR), which is used to estimate burn severity, and Normalized Difference Vegetation Index (NDVI), used to estimate greenness of vegetation. 
+Remotely-sensed data consisted of two indices: the Normalized Burn Ratio (NBR; @key2006), which is used to estimate burn severity, and Normalized Difference Vegetation Index (NDVI; @rousejr1974), used to estimate greenness of vegetation. 
 Sentinel-2 imagery was retrieved from the online Copernicus Browser using a custom EvalScript to return values for each index as a separate band in a geo-referenced raster file; each scene was inspected to ensure cloud-free imagery over pasture locations beginning with the first snow-free scene through to the final snow-free scene each year. 
-To calculate burn severity, we subtracted the first post-fire image from the most-recent pre-fire image for each burn unit, generating a burn severity index known as differenced Normalized Burn Ratio (dNBR). 
+To calculate burn severity, we subtracted the first post-fire image from the most-recent pre-fire image for each burn unit, generating a burn severity index known as differenced Normalized Burn Ratio (dNBR; @key2006). 
 Estimates of fuel greenness were made with the NDVI from the same most-recent pre-burn image. 
 
-Landsat imagery was processed with Google Earth Engine using a custom script to merge missions over time, mask clouds, and calculate NDVI for the burn seasons defined above, 1990--2022. 
+Landsat imagery was processed with Google Earth Engine [@gorelick2017] using a custom script to merge missions over time, mask clouds, and calculate NDVI for the burn seasons defined above, 1990--2022. 
 See Supplemental Information for scripts used for both Copernicus and Google Earth Engine.
 
 Remotely-sensed values were extracted from raster images at sample points using the *terra* package for the **R** statistical environment [@hijmans2022; @rcoreteam2024a].
@@ -95,7 +105,7 @@ Data from unburned control pastures were retrieved from points used in forage qu
 Weather data---which included air temperature, relative humidity, dew point, windspeed, and vapor pressure deficit---were retrieved from the North Dakota Agricultural Weather Network's Streeter station [@ndawn2023]. 
 To characterize day-of fire weather for successful burn days, we calculated mean values for operational burn periods (1000--1700) from hourly data for days recorded as having at least one completed fire. 
 To characterize seasonal fire weather, we used daily precipitation totals to eliminate days with more than 25 mm precipitation---days no fire would be conducted under any other circumstance---and calculated mean values for the operational period for each spring (25 April--25 May) and summer (7--27 August) burn season. 
-Seasonal values were determined for both the study period (spring and summer burn seasons, 2017--2020) and the historical range (1 April- 31 October, 1990--2023). 
+Seasonal values were determined for both the study period (spring and summer burn seasons, 2017--2020) and the historical range (1 April--31 October, 1990--2023). 
 
 To examine potential changes in conditions over time, all data related to the fire environment---NDVI, cumulative rainfall, and average hourly fire weather data for the operational period---were summarized for each burn season in the first and final decades of the dataset, 1990--1999 and 2012--2022, respectively. 
 
@@ -123,7 +133,7 @@ In two instances---spring windspeed and summer rainfall---the more apparent temp
 We used remotely-sensed imagery and weather data to inform whether, in the four years summer burns were attempted in a research project in the Northern Great Plains, the two successful years, or the two unsuccessful years, were more likely outcomes based on typical fuel and weather conditions. 
 Comparing seasonal values to historical ranges suggests that unsuccessful burn seasons were the anomalies. 
 As such, successfully completing prescribed fire in the late growing season in the Northern Great Plains is a reasonable management objective. 
-However, the prairie fuelbeds might simply be too green to carry fire in some years, likely those with above-normal rainfall over the course of the growing season. 
+However, prairie fuelbeds might simply be too green to carry fire in some years, likely those with above-normal rainfall over the course of the growing season. 
 
 The data provide little indication that fire weather posed a barrier to successful summer burning. 
 Overall, burn season fire weather was highly variable across study years, and burn day weather spanned the gamut (the exception was wind speed, which was below average in all study years). 
@@ -155,6 +165,9 @@ We suggest instead an approach that uses the type of data presented here to clas
 <!-- Even including fuel load did little to improve explanatory power---while fuel load had a positive linear relationship with observed flame temperatures in a subset of these fires, it was not related to rate of spread or surface heating [@mcgranahan2023a]. -->
 
 <!-- On account of ecological and management histories, fuel loads across burn units were similar, with internal variability attributable to topoedaphic effects (slope, soil texture) and year-to-year differences in precipitation.  -->
+
+The authors declare no conflict of interest. 
+
 
 \newpage
 

@@ -1,6 +1,6 @@
 ---
 title: Evaluating an attempt to restore summer fire in the Northern Great Plains
-author: DA McGranahan & JP Angerer??
+author: DA McGranahan & JP Angerer
 output: 
   html_document:
     highlight: tango
