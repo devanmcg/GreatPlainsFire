@@ -40,9 +40,45 @@ gp %>%
   padus <- terra::vect("S:/DevanMcG/GIS/SpatialData/US/USGS/PADUS/PADUS4_0_Geodatabase.gdb", 
                    'PADUS4_0Combined_Proclamation_Marine_Fee_Designation_Easement') 
   # Convert to sf
-    pad_sf <- padus %>% 
-                st_as_sf() %>% 
-                st_transform(gp)
+    padus_sf <- padus %>% st_as_sf() 
+  # Resolve invalid geometries
+    padus_sfv <- padus_sf %>% st_make_valid() 
+  # Might as well save that sucker 
+    padus_sfv %>%
+      st_write("S:/DevanMcG/GIS/SpatialData/US/USGS/PADUS/PADUS4_0_GeoPackage.gpkg", 
+               'PADUS4_0Combined_Proclamation_Marine_Fee_Designation_Easement') 
+  # Crop to study area 
+    padus_gp <- padus_sfv %>% 
+                  select(Mang_Type, Mang_Name, Des_Tp, Loc_Ds, Unit_Nm ) %>%
+                  st_intersection(gp)
+    
+    lands <- c("State Land Board Stewardship Trust Lands", "State Lands - General", "School Lands",
+               "Other State Land", "State Natural Area", "State Park" , "State Parks" , 'NF',
+               "Military Reserve", "Natural Area" , "State Wildlife Area" , "State Habitat Area", 
+               "National Game Refuge", "Wildlife Habitat Management Area", "Wildlife Management Area",                                        
+               "Wildlife/Recreation Management Area", "County Natural Area" , "Wildlife Habitat Area" ,
+               "BLM_NM", "WPA",  "County Parks"  , "State Wildlife Areas", "State Land Board Public Access Program",                          
+               "State Land Board", "State Watchable Wildlife Area", "National Land Trust Lands",
+               "NWR", "WMA", 'WPA', "National Forest", "National Grassland", "National Monument", 
+               "National Park", "National Preserve", "National Wildlife Refuge",
+               "Bureau of Land Management CO", "Bureau of Land Management MT", 
+               "Bureau of Land Management NM", "Bureau of Land Management WY" , 
+               "State Land Board Public Access Program - Seasonal Access", "State Wildlife Management Area",                                  
+               "State OHV Area" , "State Recreation Area", "State Preserve", "Wildlife Area", 
+               "Department of Defense (DOD)" , "State Land Board Stewardship Trust Land",
+               "US Fish and Wildlife Service - General", "Wildlife Habitat Protection Area",
+               "Preserve" ,  "Game Refuge", "Wildlife Refuge", 'Audubon Society Preserve or Sanctuary', 
+               'Recreation or Education')
+    
+    padus_gp %>%
+      filter(Loc_Ds %in% lands)
+    
+    padus_gp %>%
+      filter(Mang_Name %in% c('BLM', 'DOD', 'ARS', 'USBR', 'NPS') |
+             Loc_Ds %in% lands) %>%
+      st_write('./Seasonality/data/spatial/seasonality.gpkg', 'padus_gp', append = F)
+    
+    
   # crop SMA to GP 
     pad_sf %<>% select(ADMIN_ST, ADMIN_AGENCY_CODE) %>% st_intersection(gp)
   %>%
