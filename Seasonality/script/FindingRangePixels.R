@@ -48,3 +48,11 @@ sections %<>%  st_transform(reeves_crs)
   stopCluster(cl)
   Sys.time() - begin 
 }
+
+#save(RangeSections, file = 'S:/DevanMcG/Projects/FuelWeatherSeasonality/RangeSections.Rdata') 
+
+RangeSectionsSF <-
+  RangeSections %>%
+    st_as_sf(coords = c('long', 'lat'), crs = st_crs(reeves_crs)) 
+
+  #save(RangeSectionsSF, file = 'S:/DevanMcG/Projects/FuelWeatherSeasonality/RangeSectionsSF.Rdata') 
