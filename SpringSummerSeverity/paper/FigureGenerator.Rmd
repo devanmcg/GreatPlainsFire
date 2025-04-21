@@ -17,14 +17,18 @@ pacman::p_load(tidyverse, cowplot, patchwork, wesanderson)
   load('../data/BurnIndices.Rdata')
   load('../data/NoFireTrends.Rdata')
   load('../data/WxData.Rdata')
+  # stats results
+  load('../data/z_tab.Rdata')
+  load('../data/comp_tab.Rdata')
 # some necessary things
+  sys_yr <- 
+    Sys.Date() %>%
+      as.POSIXct(., '%Y-%M-%d') %>%
+      year() 
   seasons <- 
     tibble(season = c('Spring', 'Summer'), 
-           start = c(as.Date('2024-04-25'), as.Date('2024-08-07')), 
-           end = c(as.Date('2024-05-25'), as.Date('2024-08-27'))) 
-```
-
-```{r}
+           start = c(as.Date(paste0(sys_yr, '-04-25')), as.Date(paste0(sys_yr, '-08-07'))), 
+           end = c(as.Date(paste0(sys_yr, '-05-25')), as.Date(paste0(sys_yr, '-08-27'))))
 LandsatSums <-
   NoFireTrends  %>%
     separate(ImageDate, into=c('year', 'month', 'day'), sep = '-') %>%
@@ -171,7 +175,7 @@ LandsatSums %>%
                             mutate(status = case_when(
                               season == 'Summer' & 
                               year %in% c('2018', '2019') ~ "Not completed", 
-                              TRUE ~ "Completed") )%>% 
+                              TRUE ~ "Completed") ) %>% 
   ggplot(aes(x = season)) + theme_bw(14) + 
       geom_boxplot(data = LandsatSums %>%
                      filter(index == 'ndvi')  ,
@@ -237,6 +241,11 @@ p3 / p4 +
   theme(legend.position = "right", legend.direction = "vertical")
 ```
 
+```{r ndvi_precip_z}
+z_tab$ndvi_prcp %>%
+    pander::pander("Study period deviations from historical NDVI and YTD precipitation across burn seasons.") 
+```
+
 ## Weather data 
 
 ```{r weather, fig.cap="Four fire weather variables plotted by burn day values (open triangles), study season means (open circles and X for seasons without completed burns), and 42-year historical trends (boxplots).", fig.height = 9}
@@ -297,6 +306,134 @@ RainyDays <-
       guides(color=guide_legend(override.aes = list(pch=15, size =4)))
 ```
 
+```{r weather_season_z}
+z_tab$wxd %>%
+    pander::pander("Study period deviations from historical fire weather across burn seasons.") 
+```
+
+## Historical patterns 
+
+```{r }
+StudySums <- 
+  LandsatSums %>%
+    filter(year %in% c(2017:2020)) %>%
+    group_by(year, season, index) %>%
+    summarize(Mean = mean(Value),
+              SEM = sd(Value)/sqrt(n()), 
+              .groups = 'drop') %>%
+    mutate(status = case_when(
+      season == 'Summer' & year %in% c('2018', '2019') ~ "Not completed", 
+      TRUE ~ "Completed"), 
+      index = toupper(index), 
+      index = fct_rev(index) ) 
+
+HistoricalSpectralData <- 
+  bind_rows(
+  LandsatSums %>%
+  filter(year %in% c(1990:1999))%>% 
+  mutate(range = '1990-1999', 
+         index = toupper(index), 
+         index = fct_rev(index)), 
+  LandsatSums %>%
+    filter(year %in% c(2012:2022))%>% 
+    mutate(range = '2012-2022', 
+           index = toupper(index), 
+           index = fct_rev(index)), 
+  LandsatSums %>%
+    mutate(range = '1990-2022', 
+           index = toupper(index), 
+           index = fct_rev(index)) )
+```
+
+```{r historical_phenology, eval = TRUE, fig.width = 8, fig.height =11.5}
+WxData$HourlyWx %>%
+  filter(! date %in% RainyDays$date, # remove rainy days with no chance of burning
+         ! is.na(season)) %>%
+  group_by(Year, date, season) %>%
+  summarise_at(.vars = vars(c(DewPoint, RelHum, WindSpeed,VPD)),
+               .funs = c("mean")) %>%
+  ungroup() %>%
+  pivot_longer(names_to = 'variable', 
+               values_to = 'value', 
+               cols = DewPoint:VPD) %>%
+  group_by(Year, season, variable) %>%
+  summarise(Value = mean(value), 
+            .groups = 'drop') %>%
+  mutate(Year = as.character(Year), 
+         #season = fct_rev(season), 
+         period = case_when(
+           Year %in% c(1990:1999) ~  '1990-1999', 
+           Year %in% c(2012:2022) ~  '2012-2022', 
+           TRUE ~ NA
+         )) %>%
+  filter(!is.na(period)) %>%
+  bind_rows(WxData$Rainfall %>% 
+              filter(month(date) %in% c(04:09)) %>%
+              separate(date, into = c('Year', 'Month', 'Day'),sep = '-') %>%
+              group_by(Year) %>%
+              mutate(CumPrecip = cumsum(Rainfall), 
+                     Month = recode(Month, '05' ="May", '08'='Aug'), 
+                     season = paste0(Month, ' ', Day)) %>%
+              ungroup() %>%
+              filter(season %in% c('May 15', 'Aug 01' )) %>%
+              mutate(season = ifelse(season == 'May 15', 'Spring', 'Summer'), 
+                     period = case_when(
+                       Year %in% c(1990:1999) ~  '1990-1999', 
+                       Year %in% c(2012:2022) ~  '2012-2022', 
+                       TRUE ~ NA
+                     ) )  %>%
+              filter(!is.na(period)) %>%
+              select(Year, season, CumPrecip, period) %>%
+              pivot_longer(names_to = 'variable', 
+                           values_to = 'Value', 
+                           cols = CumPrecip))  %>%
+  bind_rows(HistoricalSpectralData  %>% 
+              select(-pasture) %>%
+              filter(index == 'NDVI', 
+                     range != '1990-2022') %>%
+              rename(Year = year, period = range, variable = index)
+            ) %>%
+  mutate( variable = factor(variable, levels = c('NDVI', 'CumPrecip', 'DewPoint', 
+                                                 'RelHum', 'VPD', 'WindSpeed')), 
+          variable = recode(variable, 
+                           'NDVI' = "Fuelbed\ngreenness\n(NDVI)", 
+                           'CumPrecip' = 'Cumulative\nrainfall\n(mm)',
+                           'DewPoint' = 'Dew\nPoint\n(°C)', 
+                           'RelHum' = 'Relative\nHumidity\n(%)', 
+                           'VPD' = 'Vapor\nPressure\nDeficit', 
+                           'WindSpeed' = 'Wind\nspeed\n(m/s)'), 
+          period = recode(period, '1990-1999' = '1990-99', '2012-2022' = '2012-22')) %>%
+  ggplot() + theme_bw(16) + 
+  geom_hline(data = . %>%
+               filter(as.numeric(Year) %in% c(2017:2020)) %>%
+               mutate(status = case_when(
+                 season == 'Summer' & 
+                   Year %in% c('2018', '2019') ~ "Not completed", 
+                 TRUE ~ "Completed") ) %>%
+               group_by(variable, Year, season, status) %>%
+               slice(1) , 
+             aes(yintercept = Value,
+                 color = Year, lty = status), 
+             lwd = 1 ) + 
+  geom_boxplot(aes(x=period, 
+                   y = Value),
+               outliers = F, 
+               staplewidth = 0.25) +
+  labs(x = 'Historical period', y = ' ') + 
+  facet_grid(variable~season, scales = "free_y")  +
+  scale_linetype_manual("Burn status", values = c(1,2)) +
+  scale_color_manual("Study year", values = FFgrad) +
+  theme(axis.text.x = element_text(color = 'black'), 
+        panel.grid.major.x = element_blank() , 
+        strip.text.y = element_text(angle = 0), 
+        strip.background = element_rect(fill = '#A1D99B')) 
+```
+
+```{r historical_phenology_z}
+z_tab$hist %>%
+    pander::pander("Study period deviations from two historical periods of fuel conditions and fire weather across burn seasons.") 
+```
+
 # Supplemenary Info
 
 ## Seasonal trends
@@ -341,13 +478,14 @@ ggplot(aes(x = SampleDate,
 
 ```{r precip_trend, eval = TRUE, fig.cap="Thick black line shows smoothed 40-yr trend. Green shaded areas span the first and last dates of completed burns in the spring and summer.", fig.height = 4, fig.width = 8}
   WxData$Rainfall %>% 
+  mutate(day = day + years(1)) %>%
     filter(month(date) %in% c(04:09)) %>%
     separate(date, into = c('Year', 'Month', 'Day'),sep = '-') %>%
     group_by(Year) %>%
     mutate(CumPrecip = cumsum(Rainfall)) %>%
     ggplot(aes(x = day)) + theme_bw(14) +
     geom_rect(data= seasons, inherit.aes = FALSE,
-              aes(xmin=start, xmax=end, ymin=-Inf, ymax=+Inf), 
+              aes(xmin=start, xmax=end, ymin=-Inf, ymax=+Inf),
               fill='#A1D99B', alpha=0.5) +
     geom_line(aes(y = CumPrecip, group = Year),
               color = 'grey40', 
@@ -512,8 +650,6 @@ BurnIndices  %>%
 ```
 
 
-## Historical trends 
-
 ```{r eval = FALSE}
 LandsatSums %>%
   filter(year %in% c(2017:2020)) %>%
@@ -541,38 +677,6 @@ LandsatSums %>%
         panel.grid.major.x = element_blank() )
 ```
 
-```{r }
-StudySums <- 
-  LandsatSums %>%
-    filter(year %in% c(2017:2020)) %>%
-    group_by(year, season, index) %>%
-    summarize(Mean = mean(Value),
-              SEM = sd(Value)/sqrt(n()), 
-              .groups = 'drop') %>%
-    mutate(status = case_when(
-      season == 'Summer' & year %in% c('2018', '2019') ~ "Not completed", 
-      TRUE ~ "Completed"), 
-      index = toupper(index), 
-      index = fct_rev(index) ) 
-
-HistoricalSpectralData <- 
-  bind_rows(
-  LandsatSums %>%
-  filter(year %in% c(1990:1999))%>% 
-  mutate(range = '1990-1999', 
-         index = toupper(index), 
-         index = fct_rev(index)), 
-  LandsatSums %>%
-    filter(year %in% c(2012:2022))%>% 
-    mutate(range = '2012-2022', 
-           index = toupper(index), 
-           index = fct_rev(index)), 
-  LandsatSums %>%
-    mutate(range = '1990-2022', 
-           index = toupper(index), 
-           index = fct_rev(index)) )
-```
-
 ```{r historical_ndvi, eval = FALSE, fig.width = 7, fig.height =3}
   ggplot() + theme_bw(14) + 
   geom_boxplot(data = HistoricalSpectralData  %>% filter(index == 'NDVI'),
@@ -597,90 +701,6 @@ HistoricalSpectralData <-
   theme(axis.text.x = element_text(color = 'black'), 
         panel.grid.major.x = element_blank() ) +
     guides(color=guide_legend(override.aes = list(pch=15, size =4)))
-```
-
-```{r historical_phenology, eval = TRUE, fig.width = 8, fig.height =11.5}
-WxData$HourlyWx %>%
-  filter(! date %in% RainyDays$date, # remove rainy days with no chance of burning
-         ! is.na(season)) %>%
-  group_by(Year, date, season) %>%
-  summarise_at(.vars = vars(c(DewPoint, RelHum, WindSpeed,VPD)),
-               .funs = c("mean")) %>%
-  ungroup() %>%
-  pivot_longer(names_to = 'variable', 
-               values_to = 'value', 
-               cols = DewPoint:VPD) %>%
-  group_by(Year, season, variable) %>%
-  summarise(Value = mean(value), 
-            .groups = 'drop') %>%
-  mutate(Year = as.character(Year), 
-         #season = fct_rev(season), 
-         period = case_when(
-           Year %in% c(1990:1999) ~  '1990-1999', 
-           Year %in% c(2012:2022) ~  '2012-2022', 
-           TRUE ~ NA
-         )) %>%
-  filter(!is.na(period)) %>%
-  bind_rows(WxData$Rainfall %>% 
-              filter(month(date) %in% c(04:09)) %>%
-              separate(date, into = c('Year', 'Month', 'Day'),sep = '-') %>%
-              group_by(Year) %>%
-              mutate(CumPrecip = cumsum(Rainfall), 
-                     Month = recode(Month, '05' ="May", '08'='Aug'), 
-                     season = paste0(Month, ' ', Day)) %>%
-              ungroup() %>%
-              filter(season %in% c('May 15', 'Aug 01' )) %>%
-              mutate(season = ifelse(season == 'May 15', 'Spring', 'Summer'), 
-                     period = case_when(
-                       Year %in% c(1990:1999) ~  '1990-1999', 
-                       Year %in% c(2012:2022) ~  '2012-2022', 
-                       TRUE ~ NA
-                     ) )  %>%
-              filter(!is.na(period)) %>%
-              select(Year, season, CumPrecip, period) %>%
-              pivot_longer(names_to = 'variable', 
-                           values_to = 'Value', 
-                           cols = CumPrecip))  %>%
-  bind_rows(HistoricalSpectralData  %>% 
-              select(-pasture) %>%
-              filter(index == 'NDVI', 
-                     range != '1990-2022') %>%
-              rename(Year = year, period = range, variable = index)
-            ) %>%
-  mutate( variable = factor(variable, levels = c('NDVI', 'CumPrecip', 'DewPoint', 
-                                                 'RelHum', 'VPD', 'WindSpeed')), 
-          variable = recode(variable, 
-                           'NDVI' = "Fuelbed\ngreenness\n(NDVI)", 
-                           'CumPrecip' = 'Cumulative\nrainfall\n(mm)',
-                           'DewPoint' = 'Dew\nPoint\n(°C)', 
-                           'RelHum' = 'Relative\nHumidity\n(%)', 
-                           'VPD' = 'Vapor\nPressure\nDeficit', 
-                           'WindSpeed' = 'Wind\nspeed\n(m/s)'), 
-          period = recode(period, '1990-1999' = '1990-99', '2012-2022' = '2012-22')) %>%
-  ggplot() + theme_bw(16) + 
-  geom_hline(data = . %>%
-               filter(as.numeric(Year) %in% c(2017:2020)) %>%
-               mutate(status = case_when(
-                 season == 'Summer' & 
-                   Year %in% c('2018', '2019') ~ "Not completed", 
-                 TRUE ~ "Completed") ) %>%
-               group_by(variable, Year, season, status) %>%
-               slice(1) , 
-             aes(yintercept = Value,
-                 color = Year, lty = status), 
-             lwd = 1 ) + 
-  geom_boxplot(aes(x=period, 
-                   y = Value),
-               outliers = F, 
-               staplewidth = 0.25) +
-  labs(x = 'Historical period', y = ' ') + 
-  facet_grid(variable~season, scales = "free_y")  +
-  scale_linetype_manual("Burn status", values = c(1,2)) +
-  scale_color_manual("Study year", values = FFgrad) +
-  theme(axis.text.x = element_text(color = 'black'), 
-        panel.grid.major.x = element_blank() , 
-        strip.text.y = element_text(angle = 0), 
-        strip.background = element_rect(fill = '#A1D99B')) 
 ```
 
 ```{r eval = FALSE}

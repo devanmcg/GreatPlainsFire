@@ -39,27 +39,26 @@ gp <- read_sf('S:/DevanMcG/Projects/FuelWeatherSeasonality/seasonality.gpkg', 'S
  
  
  # Rangeland 
-   reeves_rast <- terra::rast('S:/DevanMcG/GIS/SpatialData/US/USFS/ReevesRangelands/InteriorWestRangelands.tif')
-    gp_sp <- state_polygons %>%
-               st_union() %>%
-               st_transform(5070) %>%
-               as_Spatial()
-   gp_reeves_rast <-
-     reeves_rast %>%
-       terra::crop(gp_sp ) 
-   
-   terra::plot(gp_reeves_rast)
-   
-   terra::writeRaster(gp_reeves_rast, 'S:/DevanMcG/Projects/FuelWeatherSeasonality/StudyRegionReeves.tif')
-   
-   gp_reeves_r <- raster::raster(gp_reeves_rast)
-   
-   reeves_SPDF <- as(gp_reeves_r, "SpatialPointsDataFrame")
-   reeves_SPDF %>%
-     st_as_sf() %>%
-     st_intersection(
-       st_transform(
-         state_sections, raster::crs(c_wui_SPDF)), 
-       .) 
-
+ reeves_rast <- terra::rast('S:/DevanMcG/GIS/SpatialData/US/USFS/ReevesRangelands/InteriorWestRangelands.tif')
+ gp_sp <- state_polygons %>%
+   st_union() %>%
+   st_transform(5070) %>%
+   as_Spatial()
+ gp_reeves_rast <-
+   reeves_rast %>%
+   terra::crop(gp_sp ) 
+ 
+ terra::plot(gp_reeves_rast)
+ 
+ terra::writeRaster(gp_reeves_rast, 'S:/DevanMcG/Projects/FuelWeatherSeasonality/StudyRegionReeves.tif')
+ 
+ gp_reeves_r <- raster::raster(gp_reeves_rast)
+ 
+ reeves_SPDF <- as(gp_reeves_r, "SpatialPointsDataFrame")
+ reeves_SPDF %>%
+   st_as_sf() %>%
+   st_intersection(
+     st_transform(
+       state_sections, raster::crs(c_wui_SPDF)), 
+     .) 
     

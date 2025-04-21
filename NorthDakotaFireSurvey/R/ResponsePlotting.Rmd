@@ -1,0 +1,351 @@
+---
+title: "Rancher perceptions of Rx fire in North Dakota"
+subtitle: "Survey responses"
+date: "Version date: `r format(Sys.time(), '%d %B %Y')`"
+output:
+  html_document:
+    toc: TRUE
+    toc_float: FALSE
+    theme: journal
+    highlight: tango
+    code_folding: hide
+    code_download: true
+    self_contained: TRUE
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, eval = TRUE, fig.path='../Writing/figures/', dev=c('png'))
+# load packages
+  pacman::p_load(tidyverse, magrittr, sf, grid, gridExtra, cowplot)
+  pacman::p_load_gh('devanmcg/wesanderson')
+  ER_pal = wes_palette("Zissou1")[c(1, 4, 5, 2)]
+# load pre-wrangled data
+  load('./Data/responses.Rdata')
+```
+
+# Synthesis and potential recommentations
+
+* Despite not relying on scientific products themselves, respondents do expect administrators of grazinglands to use the best available science
+* Respondents generally trust agencies and NGOs, but not necessarily with fire
+* Respondents believe their community sees little value in Rx fire and do not want its use expanded
+* Initiatives related to Rx fire are likely to be best recieved when they come from Pheasants Forever and Extension
+* To increase palatability of Rx fire on public grazinglands, ranchers will likely need to come to appreciate burning as a component of good stewardship, not just a tool for specific management objectives
+
+# Results 
+
+## Perceptions of, and trust in, various organizations 
+
+Take-aways regarding general use and trust: 
+
+* Respondents generally trust most resources
+* County Extension resources are the most used
+* BLM resources are the least used, consistent with BLM footprint in ND
+
+Take-aways regarding fire, specifically: 
+
+* Overall trust is considerably lower with fire
+* USFS is most associated with Rx fire, but trusted least
+* Pheasants Forever is associated with Rx fire and most trusted with it
+* Extension has a high degree of trust but low association
+
+```{r agency_responses, fig.height=12, fig.width=10, fig.cap='Perceptions of various federal (US) and state (ND) agencies and non-governmental organizations regarding (A) use and trust in provided resources, in general; and (B) association and trust with respect to prescribed fire, specifically. TNC = The Nature Conservancy, NRCS = USDA Natural Resource Conservation Service; BLM = US Dept. of Interior Bureau of Land Management; ARS = USDA Agricultural Research Service.'}
+# Prepare agency response 
+  agency_responses <- 
+    responses %>%
+      filter(QuestionKey != 'Agency_Resources', 
+             str_starts(QuestionKey, "Agency") ) %>%
+      mutate(QuestionKey = str_remove(QuestionKey, "Agency_"), 
+             QuestionKey = str_replace_all(QuestionKey,  "([[:upper:]])"," \\1"), 
+             QuestionKey = str_trim(QuestionKey)) %>% 
+      separate(QuestionKey, into = c('category', 'topic'), sep = ' ') %>%
+      mutate(agency = case_when(
+                        OptionKey == 'NDGF' ~      'ND Game & Fish', 
+                        OptionKey == 'PF' ~        'Pheasants Forever', 
+                        OptionKey == 'USFWS' ~     'US Fish & Wildlife', 
+                        OptionKey == 'audubon' ~   'Audubon Society', 
+                        OptionKey == 'extension' ~ 'County Extension', 
+                        OptionKey == 'USFS' ~      'US Forest Service', 
+                        TRUE ~ str_to_upper(OptionKey) ))
+# Resources in general 
+  agency_general <- 
+    agency_responses %>%
+      filter(category != "Fire") %>%
+      mutate(Response = recode(topic, 
+                               "Trust" = "Trust", 
+                               "Use" = "Use"), 
+             Response = fct_rev(Response)) %>%
+      ggplot() + theme_bw(16) + 
+      geom_vline(xintercept = 0, lty = 2) + 
+      geom_errorbarh(aes(xmin = min, 
+                         xmax = max, 
+                         y = agency, 
+                         color = Response), 
+                     lwd = 0.9,
+                     position = position_dodge(width = 0.6)) +
+      geom_point(aes(x = mid, y = agency, 
+                     fill = Response, 
+                     shape = Response), 
+                 size = 4, 
+                 stroke = 1,
+                 position = position_dodge(width = 0.6)) + 
+     coord_cartesian(xlim = c(-1.15, 1.9)) + 
+      labs(title = 'A. "In general, I personally use/trust resources from this organization"', 
+           x = 'Agreement Index') + 
+      scale_shape_manual(values = c(21, 24)) + 
+      scale_color_manual(values = wes_palette("FantasticFox1")[c(3,5)]) + 
+      scale_fill_manual(values = wes_palette("FantasticFox1")[c(3,5)]) + 
+      theme(axis.title.y = element_blank(), 
+            axis.text.y = element_text(color = 'black', size = 14), 
+            plot.title.position = "plot", 
+            legend.position = 'top', 
+            legend.title=element_blank() )
+# WRT fire, specifically
+  agency_fire <- 
+    agency_responses %>%
+      filter(category == "Fire") %>%
+      mutate(Response = recode(topic, 
+                            "Trust" = "Trust regarding Rx fire", 
+                            "Use" = "Associate with Rx fire")) %>%
+      ggplot() + theme_bw(16) + 
+      geom_vline(xintercept = 0, lty = 2) + 
+        geom_errorbarh(aes(xmin = min, 
+                           xmax = max, 
+                           y = agency, 
+                           color = Response), 
+                       lwd = 0.9,
+                       height = 0.5,
+                       position = position_dodge(width = 0.6)) +
+        geom_point(aes(x = mid, y = agency, 
+                       fill = Response, 
+                       shape = Response), 
+                   size = 4, 
+                   stroke = 1,
+                   position = position_dodge(width = 0.6)) + 
+       coord_cartesian(xlim = c(-1.15, 1.9)) + 
+      labs(title = 'B. "I associate/trust this organization with Rx fire activity or information"', 
+           x = 'Agreement Index') + 
+       scale_shape_manual(values = c(21, 24)) + 
+      scale_color_manual(values = wes_palette("FantasticFox1")[c(3,5)]) + 
+      scale_fill_manual(values = wes_palette("FantasticFox1")[c(3,5)]) + 
+        theme(axis.title.y = element_blank(), 
+              axis.text.y = element_text(color = 'black', size = 14), 
+              plot.title.position = "plot", 
+              legend.position = 'top', 
+              legend.title=element_blank() )
+plot_grid(agency_general, 
+          agency_fire, 
+           # labels = c('A', 'B'),
+          ncol = 1)
+```
+
+## Contributions to management decisionmaking
+
+Take-aways:
+
+* Respondents mostly value open rangeland 
+* Respondents have little concern for managing wildfire risk or invasive species
+* Respondents are mostly influenced by a sense of stewardship and passed-down knowledge
+* Little direct impact of neighbors and science on decisionmaking
+
+```{r decisionmaking, fig.height=8, fig.width=10, fig.cap='Degree to which respondents agreed that various management considerations (A) were important in their decisions, and (B) influenced their decisionmaking.'}
+importance <-
+    responses %>%
+      filter(str_starts(QuestionKey, "Importance") ) %>%
+      mutate(response = case_when(
+              OptionKey == 'restore_prairie' ~      'Restore prairie/grassland', 
+              OptionKey == 'reduce_wildfire' ~        'Reduce wildfire risk', 
+              OptionKey == 'protect_wildlife' ~     'Protect wildlife habitat', 
+              OptionKey == 'heterogeneity' ~   'Increase plant diversity', 
+              OptionKey == 'control_woody' ~ 'Woody plant control', 
+              OptionKey == 'control_invasives' ~      'Invasive species control' )) %>%
+  ggplot() + theme_bw(16) + 
+  geom_vline(xintercept = 0, lty = 2) + 
+  geom_errorbarh(aes(xmin = min, 
+                     xmax = max, 
+                     y = fct_reorder(response, mid)), 
+                 color = wes_palette("FantasticFox1")[3],
+                  height = 0.5,
+                 lwd = 0.9 ) +
+  geom_point(aes(x = mid, y = response ),
+             fill = wes_palette("FantasticFox1")[3], 
+             pch = 21,
+             size = 5, 
+             stroke = 1 ) + 
+  # coord_cartesian(xlim = c(-1.15, 1.9)) + 
+  labs(title = 'A. "This environmental concern is important to me"', 
+       x = 'Agreement Index') + 
+  theme(axis.title.y = element_blank(), 
+        axis.text.y = element_text(color = 'black', size = 14), 
+        plot.title.position = "plot" )
+influence <- 
+    responses %>%
+    filter(str_starts(QuestionKey, "Influence") ) %>%
+    mutate(response = case_when(
+              OptionKey == 'research' ~      'Scientific research/\nUniversity publications', 
+              OptionKey == 'neighbors' ~     'How my neighbors\nmanage their land', 
+              OptionKey == 'good' ~          'Being a good steward', 
+              OptionKey == 'gen' ~   'What previous generations\ntaught me', 
+              OptionKey == 'advice' ~ 'Professional advice' )) %>%
+    ggplot() + theme_bw(16) + 
+    geom_vline(xintercept = 0, lty = 2) + 
+    geom_errorbarh(aes(xmin = min, 
+                       xmax = max, 
+                       y = fct_reorder(response, mid)), 
+                   color = wes_palette("FantasticFox1")[5],
+                   height = 0.5,
+                   lwd = 0.9 ) +
+    geom_point(aes(x = mid, y = response ),
+               fill = wes_palette("FantasticFox1")[5], 
+               pch = 21,
+               size = 5, 
+               stroke = 1 ) + 
+    # coord_cartesian(xlim = c(-1.15, 1.9)) + 
+    labs(title = 'B. "This consideration affects my management decisionmaking"', 
+         x = 'Agreement Index') + 
+    theme(axis.title.y = element_blank(), 
+          axis.text.y = element_text(color = 'black', size = 14), 
+          plot.title.position = "plot" )
+plot_grid(importance, 
+          influence, 
+           # labels = c('A', 'B'),
+          ncol = 1)
+```
+
+## Attitudes about fire 
+
+Take-aways 
+
+* Respondents generally believe their community has negative perceptions of Rx fire, except for wildlife
+* Respondents have a conservative attitude towards Rx fire use and show a disinclination to use it themselves
+
+```{r attitudes, fig.height=10, fig.width=10, fig.cap='Degree to which respondents agreed with statements about (A) community perceptions of prescribed fire effects, and (B) personal attitudes about prescribed fire use.'}
+# Attitudes and beliefs about Rx fire
+beliefs <-
+  responses %>%
+    filter(QuestionKey == "CommunityFireBeliefs")  %>%
+    mutate(OptionKey = str_remove(OptionKey, 'burn_'), 
+           response = case_when(
+              OptionKey == 'wildlife' ~ 'Negative impacts to wildlife', 
+              OptionKey == 'soil_erosion' ~   'Results in soil erosion', 
+              OptionKey == 'smoke' ~    'Produces harmful smoke', 
+              OptionKey == 'safety' ~   'Poses risk to human safety', 
+              OptionKey == 'property_risk' ~   "Poses risk to nearby property", 
+              OptionKey == 'forage' ~      'Results in loss of forage' )) %>%
+    ggplot() + theme_bw(16) + 
+    geom_vline(xintercept = 0, lty = 2) + 
+    geom_errorbarh(aes(xmin = min, 
+                       xmax = max, 
+                       y = fct_reorder(response, desc(SurveyOrder))) , 
+                   color = wes_palette("FantasticFox1")[3], 
+                   lwd = 0.9 ) +
+    geom_point(aes(x = mid, y = response ),
+               fill = wes_palette("FantasticFox1")[3], 
+               pch = 21,
+               size = 4, 
+               stroke = 1 ) + 
+    # coord_cartesian(xlim = c(-1.15, 1.9)) + 
+    labs(title = 'A. "Members of my community generally believe the following about Rx fire"', 
+         x = 'Agreement Index') + 
+    theme(axis.title.y = element_blank(), 
+          axis.text.y = element_text(color = 'black', size = 14), 
+          plot.title.position = "plot" )
+attitudes <-
+  responses %>%
+    filter(str_starts(QuestionKey, "Attitudes") ) %>%
+    mutate(OptionKey = str_remove(OptionKey, 'burn_'), 
+           response = case_when(
+             OptionKey == 'beneficial' ~ 'Rx fire is a beneficial\ntool for managing rangelands', 
+             OptionKey == 'frequent' ~   'People should be able to\nburn as frequently as they\n want for management', 
+             OptionKey == 'limited' ~    'Burning can be used in a\nlimited set of instances', 
+             OptionKey == 'man_plan' ~   'My management plan includes\nusing prescribed fire', 
+             OptionKey == 'prepared' ~   "I'm prepared to use Rx fire\nif I choose to", 
+             OptionKey == 'pros' ~      'Fire should only be used\nby professionals', 
+             OptionKey == 'shouldnt' ~   'Burning is a poor management\noption that shouldn’t be used', 
+             OptionKey == 'training' ~ 'Burning is a good option\nfor anyone with training')) %>%
+    ggplot() + theme_bw(16) + 
+    geom_vline(xintercept = 0, lty = 2) + 
+    geom_errorbarh(aes(xmin = min, 
+                       xmax = max, 
+                       y = fct_reorder(response, desc(SurveyOrder))) ,
+                   height = 0.5,
+                   color = wes_palette("FantasticFox1")[5], 
+                   lwd = 0.9 ) +
+    geom_point(aes(x = mid, y = response ),
+               fill = wes_palette("FantasticFox1")[5], 
+               pch = 21,
+               size = 4, 
+               stroke = 1 ) + 
+    # coord_cartesian(xlim = c(-1.15, 1.9)) + 
+    labs(title = 'B. "I personally believe the following"', 
+         x = 'Agreement Index') + 
+    theme(axis.title.y = element_blank(), 
+          axis.text.y = element_text(color = 'black', size = 14), 
+          plot.title.position = "plot" )
+plot_grid(beliefs, 
+          attitudes, 
+          rel_heights = c(0.75, 1.5), 
+          ncol = 1)
+```
+
+## Public grazing land management and personal recreation
+
+Take-aways 
+
+* Respondents expect administrators to use good science
+* Respondents do not want to see Rx fire expanded on public grazingland
+* Respondents really don't use public grazlinglands for recreation
+
+
+```{r public_lands, fig.height=5, fig.width=10, fig.cap='Respondent attitudes towards public grazingland administration and prescribed fire use.'}
+responses %>%
+  filter(QuestionKey == "PublicGrazingBeliefs", 
+         OptionKey != 'public_fire')  %>%
+  mutate(response = case_when(
+           OptionKey == 'increase_public_fire' ~ 'There should be more Rx fire\non public grazingland',            OptionKey == 'amount_public_fire' ~'There is an appropriate amount of\nRx fire on public grazingland', 
+           OptionKey == 'admin_users' ~ 'Administrators should manage to meet\nuser needs or preferences', 
+           OptionKey == 'admin_science' ~ "Administrators should manage land\naccording to the best available science", 
+           OptionKey == 'admin_good' ~ 'Public grazingland administrators\n do a good job managing the land' )) %>%
+  ggplot() + theme_bw(16) + 
+  geom_vline(xintercept = 0, lty = 2) + 
+  geom_errorbarh(aes(xmin = min, 
+                     xmax = max, 
+                     y = fct_reorder(response, desc(SurveyOrder))) , 
+                 color = wes_palette("FantasticFox1")[3], 
+                 height = 0.5,
+                 lwd = 0.9 ) +
+  geom_point(aes(x = mid, y = response ),
+             fill = wes_palette("FantasticFox1")[3], 
+             pch = 21,
+             size = 4, 
+             stroke = 1 ) + 
+  # coord_cartesian(xlim = c(-1.15, 1.9)) + 
+  labs(title = '"I personally believe the following about public grazingland management"', 
+       x = 'Agreement Index') + 
+  theme(axis.title.y = element_blank(), 
+        axis.text.y = element_text(color = 'black', size = 14), 
+        plot.title.position = "plot" )
+```
+
+```{r recreation, fig.height=5, fig.width=10, fig.cap="Respondents' use of public grazingland for various recreation activies."}
+responses %>%
+  filter(QuestionKey == 'Recreation' ) %>%
+  ggplot() + theme_bw(16) + 
+  geom_vline(xintercept = 0, lty = 2) + 
+  geom_errorbarh(aes(xmin = min, 
+                     xmax = max, 
+                     y = fct_reorder(SurveyText, mid) ) , 
+                 color = wes_palette("FantasticFox1")[3], 
+                 height = 0.5,
+                 lwd = 0.9 ) +
+  geom_point(aes(x = mid, y = SurveyText ),
+             fill = wes_palette("FantasticFox1")[3], 
+             pch = 21,
+             size = 4, 
+             stroke = 1 ) + 
+  # coord_cartesian(xlim = c(-1.15, 1.9)) + 
+  labs(title = '"Myself and/or my family use public grazingland for these recreation activities"', 
+       x = 'Agreement Index') + 
+  theme(axis.title.y = element_blank(), 
+        axis.text.y = element_text(color = 'black', size = 14), 
+        plot.title.position = "plot" )
+```
