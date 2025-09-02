@@ -1,3 +1,22 @@
+2 band 
+
+//VERSION=3
+function setup() {
+  return {
+    input: ["B04", "B08", "B12"],
+    output: { bands: 2, sampleType: "UINT16" }
+  };
+}
+
+function evaluatePixel(sample) {
+let nbr = index(sample.B08, sample.B12);
+let ndvi = index(sample.B08, sample.B04);
+// apply offset for UINT16 
+return [10000 * nbr + 10000, 
+        10000 * ndvi + 10000]; 
+}
+
+
 NDVI
 
 //VERSION=3

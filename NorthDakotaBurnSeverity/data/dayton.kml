@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document id="root_doc">
+<Schema name="dayton" id="dayton">
+	<SimpleField name="ID" type="float"></SimpleField>
+	<SimpleField name="management" type="string"></SimpleField>
+	<SimpleField name="tract" type="string"></SimpleField>
+	<SimpleField name="classifica" type="string"></SimpleField>
+	<SimpleField name="PastureRep" type="string"></SimpleField>
+	<SimpleField name="location" type="string"></SimpleField>
+</Schema>
+<Folder><name>dayton</name>
+  <Placemark>
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#dayton">
+		<SimpleData name="management">0</SimpleData>
+		<SimpleData name="tract">0</SimpleData>
+		<SimpleData name="classifica">Cooperator</SimpleData>
+		<SimpleData name="PastureRep">0</SimpleData>
+		<SimpleData name="location">0</SimpleData>
+	</SchemaData></ExtendedData>
+      <Polygon><outerBoundaryIs><LinearRing><coordinates>-102.185433065043,46.0894795164717 -102.175035797628,46.0895322277399 -102.175097902819,46.0858036826845 -102.164894713444,46.0858166757361 -102.16476904338,46.0822940513866 -102.154446235568,46.0823808060718 -102.154393712846,46.0895001975951 -102.144036329211,46.089583050506 -102.143982733643,46.0751000765627 -102.185438075519,46.075186446431 -102.185433065043,46.0894795164717</coordinates></LinearRing></outerBoundaryIs></Polygon>
+  </Placemark>
+</Folder>
+</Document></kml>

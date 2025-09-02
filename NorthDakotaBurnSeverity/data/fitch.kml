@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document id="root_doc">
+<Schema name="fitch" id="fitch">
+	<SimpleField name="ID" type="float"></SimpleField>
+	<SimpleField name="management" type="string"></SimpleField>
+	<SimpleField name="tract" type="string"></SimpleField>
+	<SimpleField name="classifica" type="string"></SimpleField>
+	<SimpleField name="PastureRep" type="string"></SimpleField>
+	<SimpleField name="location" type="string"></SimpleField>
+</Schema>
+<Folder><name>fitch</name>
+  <Placemark>
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#fitch">
+		<SimpleData name="ID">0</SimpleData>
+		<SimpleData name="management">0</SimpleData>
+		<SimpleData name="tract">0</SimpleData>
+		<SimpleData name="classifica">Treatment</SimpleData>
+		<SimpleData name="PastureRep">fitch south</SimpleData>
+		<SimpleData name="location">fitch</SimpleData>
+	</SchemaData></ExtendedData>
+      <Polygon><outerBoundaryIs><LinearRing><coordinates>-102.724002263813,46.0319307107786 -102.724990771352,46.0336697705926 -102.725726336125,46.0349084552836 -102.725718766096,46.038425150586 -102.725756235204,46.0391784175249 -102.72211717055,46.0391964046452 -102.717471848415,46.0392036997389 -102.715474161626,46.0392209200208 -102.715387915806,46.0348440930984 -102.715363835423,46.0319449738213 -102.717769050374,46.0319882891336 -102.720528687712,46.0319767102256 -102.722937040831,46.0319437744894 -102.724002263813,46.0319307107786</coordinates></LinearRing></outerBoundaryIs></Polygon>
+  </Placemark>
+  <Placemark>
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#fitch">
+		<SimpleData name="ID">0</SimpleData>
+		<SimpleData name="management">0</SimpleData>
+		<SimpleData name="tract">0</SimpleData>
+		<SimpleData name="classifica">Treatment</SimpleData>
+		<SimpleData name="PastureRep">fitch north</SimpleData>
+		<SimpleData name="location">fitch</SimpleData>
+	</SchemaData></ExtendedData>
+      <Polygon><outerBoundaryIs><LinearRing><coordinates>-102.725716413427,46.0463324916199 -102.724769963655,46.0463224564229 -102.724165581634,46.0463161327939 -102.722285732625,46.0463224843597 -102.719296315971,46.0463257092137 -102.717469894871,46.046323522544 -102.715579349865,46.0463238345822 -102.715538330078,46.0451425574433 -102.715514558471,46.043977580353 -102.715502424331,46.0417840731934 -102.715474161626,46.0392209200208 -102.717471848415,46.0392036997389 -102.72211717055,46.0391964046452 -102.725756235204,46.0391784175249 -102.725714872693,46.0395673967181 -102.72568481836,46.0414657226751 -102.725687218256,46.043073211604 -102.725711781638,46.044557308936 -102.725716413427,46.0463324916199</coordinates></LinearRing></outerBoundaryIs></Polygon>
+  </Placemark>
+  <Placemark>
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#fitch">
+		<SimpleData name="ID">0</SimpleData>
+		<SimpleData name="management">0</SimpleData>
+		<SimpleData name="tract">0</SimpleData>
+		<SimpleData name="classifica">Treatment</SimpleData>
+		<SimpleData name="PastureRep">fitch north</SimpleData>
+		<SimpleData name="location">fitch</SimpleData>
+	</SchemaData></ExtendedData>
+      <Polygon><outerBoundaryIs><LinearRing><coordinates>-102.725855303731,46.0392007586443 -102.727420831261,46.0392152438963 -102.72858728981,46.0392051036862 -102.730922210068,46.0392110226349 -102.733252881845,46.0391787071906 -102.735109757667,46.0391679095921 -102.736183965638,46.0391558627031 -102.736209062843,46.0403827782512 -102.736207906145,46.0414153278383 -102.736210363489,46.0421083621475 -102.736164720952,46.0432252837825 -102.73615837525,46.043785023581 -102.736530025679,46.0454022095672 -102.73662912335,46.0459899955664 -102.736701634909,46.0463915061088 -102.734884340242,46.046400257085 -102.732925594585,46.0463956939394 -102.730847114707,46.0464020546865 -102.728500970931,46.0464016406862 -102.726561712918,46.0463911502944 -102.725982245521,46.0463777116568 -102.725927649585,46.0463747197318 -102.725910794381,46.0457190248597 -102.725902232242,46.0444614787584 -102.725884248705,46.0439665529371 -102.725847087112,46.0419395325855 -102.72585080844,46.0403160670248 -102.725853734365,46.0393117480533 -102.725855303731,46.0392007586443</coordinates></LinearRing></outerBoundaryIs></Polygon>
+  </Placemark>
+  <Placemark>
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#fitch">
+		<SimpleData name="ID">0</SimpleData>
+		<SimpleData name="management">0</SimpleData>
+		<SimpleData name="tract">0</SimpleData>
+		<SimpleData name="classifica">Treatment</SimpleData>
+		<SimpleData name="PastureRep">fitch south</SimpleData>
+		<SimpleData name="location">fitch</SimpleData>
+	</SchemaData></ExtendedData>
+      <Polygon><outerBoundaryIs><LinearRing><coordinates>-102.715363835423,46.0319449738213 -102.715387915806,46.0348440930984 -102.715474161626,46.0392209200209 -102.713548026757,46.0391847509691 -102.710269064001,46.0391667021522 -102.70761394798,46.0391640565299 -102.705058779435,46.0391425198767 -102.705030914293,46.0379578104988 -102.705027605452,46.03638661715 -102.704997768849,46.0346303321274 -102.705000871638,46.0333170532271 -102.704987606511,46.0319861800887 -102.70650428217,46.0319987804101 -102.708688255775,46.031980691406 -102.71017226506,46.031977108653 -102.710766881564,46.0319842634803 -102.711252965815,46.0319701895537 -102.711924507546,46.0319360143946 -102.713352315274,46.0319322171299 -102.715363835423,46.0319449738213</coordinates></LinearRing></outerBoundaryIs></Polygon>
+  </Placemark>
+</Folder>
+</Document></kml>

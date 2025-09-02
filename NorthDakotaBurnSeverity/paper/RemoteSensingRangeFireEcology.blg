@@ -1,0 +1,123 @@
+This is BibTeX, Version 0.99d
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: RemoteSensingRangeFireEcology.aux
+Reallocating 'name_of_file' (item size: 1) to 17 items.
+The style file: Definitions/mdpi.bst
+Reallocating 'name_of_file' (item size: 1) to 30 items.
+Database file #1: RemoteSensingFireBehavior.bib
+Warning--string name "jan" is undefined
+--line 5 of file RemoteSensingFireBehavior.bib
+Warning--string name "apr" is undefined
+--line 144 of file RemoteSensingFireBehavior.bib
+Warning--string name "may" is undefined
+--line 162 of file RemoteSensingFireBehavior.bib
+Warning--string name "feb" is undefined
+--line 180 of file RemoteSensingFireBehavior.bib
+Warning--string name "feb" is undefined
+--line 275 of file RemoteSensingFireBehavior.bib
+Warning--string name "jul" is undefined
+--line 308 of file RemoteSensingFireBehavior.bib
+Warning--string name "feb" is undefined
+--line 324 of file RemoteSensingFireBehavior.bib
+Warning--string name "mar" is undefined
+--line 342 of file RemoteSensingFireBehavior.bib
+Warning--string name "jul" is undefined
+--line 360 of file RemoteSensingFireBehavior.bib
+Warning--string name "aug" is undefined
+--line 405 of file RemoteSensingFireBehavior.bib
+Warning--string name "jan" is undefined
+--line 534 of file RemoteSensingFireBehavior.bib
+Warning--string name "jan" is undefined
+--line 550 of file RemoteSensingFireBehavior.bib
+Warning--string name "dec" is undefined
+--line 581 of file RemoteSensingFireBehavior.bib
+Warning--string name "sep" is undefined
+--line 739 of file RemoteSensingFireBehavior.bib
+Warning--string name "jun" is undefined
+--line 773 of file RemoteSensingFireBehavior.bib
+Warning--string name "dec" is undefined
+--line 849 of file RemoteSensingFireBehavior.bib
+Warning--string name "sep" is undefined
+--line 873 of file RemoteSensingFireBehavior.bib
+Warning--string name "mar" is undefined
+--line 891 of file RemoteSensingFireBehavior.bib
+Warning--string name "oct" is undefined
+--line 969 of file RemoteSensingFireBehavior.bib
+Warning--string name "jul" is undefined
+--line 1025 of file RemoteSensingFireBehavior.bib
+Warning--string name "oct" is undefined
+--line 1067 of file RemoteSensingFireBehavior.bib
+Warning--string name "sep" is undefined
+--line 1117 of file RemoteSensingFireBehavior.bib
+Warning--string name "dec" is undefined
+--line 1161 of file RemoteSensingFireBehavior.bib
+Warning--string name "mar" is undefined
+--line 1207 of file RemoteSensingFireBehavior.bib
+Warning--string name "may" is undefined
+--line 1234 of file RemoteSensingFireBehavior.bib
+Warning--string name "jan" is undefined
+--line 1285 of file RemoteSensingFireBehavior.bib
+Warning--string name "jan" is undefined
+--line 1302 of file RemoteSensingFireBehavior.bib
+Warning--string name "jun" is undefined
+--line 1321 of file RemoteSensingFireBehavior.bib
+Warning--string name "sep" is undefined
+--line 1366 of file RemoteSensingFireBehavior.bib
+Warning--string name "aug" is undefined
+--line 1481 of file RemoteSensingFireBehavior.bib
+Warning--string name "jun" is undefined
+--line 1586 of file RemoteSensingFireBehavior.bib
+Warning--string name "jan" is undefined
+--line 1604 of file RemoteSensingFireBehavior.bib
+Warning--string name "jan" is undefined
+--line 1624 of file RemoteSensingFireBehavior.bib
+Warning--string name "nov" is undefined
+--line 1698 of file RemoteSensingFireBehavior.bib
+Warning--string name "sep" is undefined
+--line 1800 of file RemoteSensingFireBehavior.bib
+Warning--string name "jul" is undefined
+--line 1816 of file RemoteSensingFireBehavior.bib
+Warning--string name "feb" is undefined
+--line 1859 of file RemoteSensingFireBehavior.bib
+You've used 108 entries,
+            2862 wiz_defined-function locations,
+            1291 strings with 28091 characters,
+and the built_in function-call counts, 42898 in all, are:
+= -- 3572
+> -- 2551
+< -- 64
++ -- 977
+- -- 760
+* -- 4128
+:= -- 6953
+add.period$ -- 381
+call.type$ -- 108
+change.case$ -- 109
+chr.to.int$ -- 107
+cite$ -- 108
+duplicate$ -- 1906
+empty$ -- 3532
+format.name$ -- 910
+if$ -- 8785
+int.to.chr$ -- 2
+int.to.str$ -- 108
+missing$ -- 93
+newline$ -- 596
+num.names$ -- 332
+pop$ -- 645
+preamble$ -- 0
+purify$ -- 108
+quote$ -- 0
+skip$ -- 982
+stack$ -- 0
+substring$ -- 2073
+swap$ -- 434
+text.length$ -- 13
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 750
+warning$ -- 0
+while$ -- 372
+width$ -- 0
+write$ -- 1439
+(There were 37 warnings)
