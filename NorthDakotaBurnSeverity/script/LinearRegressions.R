@@ -16,6 +16,7 @@ BurnModels <- lst()
     mc_1 <- lme4::lmer(dNBR ~ MaxC + (1|location/burn), REML = FALSE, data = PlotBurnIndices)
   
     BurnModels$Sev_v_MaxC <- anova(mc_0, mc_1)
+    summary(mc_1)$coefficients
 
   # Soil surface temperature
     sc_0 <- lme4::lmer(dNBR ~ 1 + (1|location/burn), REML = FALSE, 
@@ -32,6 +33,7 @@ BurnModels <- lst()
                         data = filter(PlotBurnIndices, ! is.na(ros)) )
     
     BurnModels$Sev_v_ROS <- anova(rs_0, rs_1)
+    summary(rs_1)$coefficients
     
 # Testing responses to fuelbed greenness
     # Canopy temperature

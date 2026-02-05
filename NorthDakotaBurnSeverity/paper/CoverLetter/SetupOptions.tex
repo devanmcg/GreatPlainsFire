@@ -1,0 +1,62 @@
+\usepackage{pdfpages} 
+\usepackage[colorlinks=true,
+            	citecolor=blue,
+            	urlcolor=blue,
+            	linkcolor=blue,
+            	pdfborder={0 0 0}]
+	{hyperref}
+
+\usepackage[scaled]{helvet}
+\renewcommand\familydefault{\sfdefault} 
+\usepackage[T1]{fontenc}
+\usepackage[autostyle=false, style=english]{csquotes}
+\MakeOuterQuote{"}
+
+\usepackage[fromalign=right,
+				fromlogo=on, 
+				foldmarks=off,  
+				fromrule=afteraddress,
+				subject=beforeopening,  % Placement of subject
+				firstfoot=on]
+			{scrletter}
+
+
+
+\setkomavar{fromname}{\textbf{Devan Allen McGranahan}} % your name
+\setkomavar{fromaddress}{
+								Livestock \& Range\\
+								Research Laboratory  \\
+								Miles City, MT 59301 \\ 
+								\href{mailto:Devan.McGranahan@usda.gov}{Devan.McGranahan@usda.gov}} 
+\setkomavar{backaddress}{}
+\setkomavar{signature}{
+				Sincerely, \\
+				{\includegraphics[width=5cm]{signature}} \\ 
+				Devan Allen McGranahan \\ 
+				Rangeland Research Ecologist }
+
+\makeatletter
+\@setplength{backaddrheight}{-1in}
+\makeatother
+
+
+
+\raggedright
+\makeatletter
+\setlength{\@tempskipa}{-3cm}%
+\@addtoplength{toaddrheight}{\@tempskipa}
+\makeatother
+
+\makeatletter
+\@setplength{refvpos}{5cm}
+\makeatother
+
+\areaset{6.5in}{10in}
+
+\renewcommand{\raggedsignature}{\raggedright} % make the signature ragged right
+\setkomavar{fromlogo}{{\includegraphics[width=0.5\textwidth]
+	{logo} }}
+
+
+% Footer 
+

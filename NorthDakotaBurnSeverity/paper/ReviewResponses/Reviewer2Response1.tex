@@ -1,0 +1,97 @@
+\documentclass[parskip=half, american]{scrartcl}
+\usepackage{booktabs}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[colorlinks=true,
+			citecolor=blue,
+			urlcolor=blue,
+			linkcolor=blue,
+			pdfborder={0 0 0}]
+	{hyperref}
+	
+\newcommand{\AR}[1]
+	{\color{PineGreen}AR: #1\color{black} \par }
+	
+\newcommand{\journal}{\emph{Fire}}
+
+
+\title{\Large Remote sensing in rangeland fire ecology: Comparing imagery to measured fire behavior, and burn severity across prescribed burns and wildfires  }
+\subtitle{Response to first review}
+\author{ }
+\date{}
+
+\pagenumbering{gobble}
+\raggedright 
+
+\begin{document}
+
+\maketitle
+
+\vspace{-2cm} 
+
+\AR{Author Responses (AR) appear below in this green text.}
+
+\section*{Reviewer 2}
+
+The paper features a sound methodological design, sufficient data, and a clear analytical framework. However, it has the following shortcomings: the introduction lacks depth; methodological details (e.g., the dNBR calculation process, data sources) are incompletely described; the results and discussion require further depth; and the conclusions lack conciseness and clear structure.
+
+\AR{I appreciate the thoughtful review and helpful comments.} 
+
+(Pages 1-5) It is recommended to condense and summarize the introduction, as it is currently not sufficiently in-depth. There is excessive focus on the history of science and general background. The introduction cites numerous references for common knowledge. Enhance the comparison of domestic and international research and emphasize the necessity and innovation of this study.
+
+\AR{I appreciate the reviewer's thoughtful consideration of the Introduction. 
+At this stage, it is unclear how condensing and summarizing will lend greater depth; this comes across as a self-contradictory suggestion. 
+While there is certainly some material on the history of science, it does not constitute a ``focus'' much less an ``excessive'' one. 
+The same goes for  general background\textemdash subsequently, is the comment ``The introduction cites numerous references for common knowledge'' provided here as a description or a critique?
+Is this not the purpose of citations in the Introduction?
+Surely the reviewer would not prefer that claims go uncited, and it is the folly of jargon-laden technical writing to assume readers share the same background of information. \\
+It is unclear what specific comparisons between ``domestic'' and ``international'' research the reviewer might like to see, or what purpose this would serve, especially when the reviewer is generally concerned about the length of the Introduction. \\
+
+I fully concede that the Introduction is longer than the average Introduction but the amount of material is not excessive relative to the ambitions of the paper.
+The paper purposefully seeks to combine two disparate realms of wildland fire research\textemdash in-field sensors and space-based earth observation systems.
+To appeal to a general audience\textemdash especially when targeting an ecosystem type (rangelands) that has seen relatively little wildland fire science in general, compared to forests\textemdash each essentially requires its own Introduction. 
+This is a particular advantage of an online-only publication, where page space is not limited. 
+To organize this more-than-typical amount of material, I have included sub-headings, which are typically not used in Introductions but serve here to provide additional structure and steer the disparate background reviews together.  }
+
+(Pages 6-8, Lines 271-273): The description of the dNBR calculation process is overly simplified. It does not explain how the specific dates for ``pre-fire'' and ``post-fire'' images were determined, nor does it mention the methods for handling noise such as clouds and shadows.
+
+\AR{The reviewer raises important points.
+   \begin{itemize}
+   	\item It is unclear what can be made more specific about ``the most-recent cloud-free image taken just before the burn, and the first cloud-free image taken just after the burn''. 
+   	If the reviewer has some specific suggestion for text stating that more clearly, I would be happy to consider it. 
+
+   \item The reviewer is correct, information on imagery quality control is not provided in L 271-273. 
+It is, however, provided in the next paragraph: L 290-291 describes how imagery was only downloaded from the Copernicus Browser ``following visual inspection of each area of interest in true color images to ensure quality, cloud-free imagery.'' 
+   \end{itemize} }
+
+(Page 7, Lines 201-249): The information on data sources is incomplete. While the text mentions using publicly available datasets such as NIFC fire perimeters, USFS grassland range maps, and TerraClimate, it does not provide the URLs for these datasets.
+
+\AR{I appreciate the reviewer's attention to ensuring information on data sources is complete. 
+	It is unclear what URLs are missing. 
+	URLs are included in each of the given citations for NIFC fire perimeters, USFS rangeland maps, and the TerraClimate data. 
+   }
+
+(Page 8, Lines 282-292): The rationale for using a ``20 m buffer'' and ``$\pm$100 gridded sample points'' is not fully explained. Although it is mentioned that the 20-meter buffer is to ``minimize edge effects,'' the specific justification for choosing 20 meters and approximately 100 points needs to be provided.
+
+\AR{I appreciate the reviewer's attention to these details. 
+The sentence in question provides the justification for the 20 m buffer as ``at least two raster cells in Sentinel-2 imagery''.
+The 100 point range is a reasonable target number that intuitively corresponds with a percentage.  }
+
+(Page 9, Lines 311-315): The text mentions a ``positive correlation'' between dNBR and flame temperature as well as spread rate, but it does not provide the slope of the regression equation, making the description less intuitive.
+
+\AR{Regression coefficients have been added to the statistical results.   }
+
+(Pages 12-13): The conclusions are not concise enough and lack a clear structure. Key points are intermingled within paragraphs, making it difficult for readers to quickly grasp them.
+
+
+\AR{I appreciate the reviewer's consideration to the Conclusions. 
+It is unclear which paragraphs the key points are intermingled within, as the Conclusion is a single paragraph and the key points are delivered directly. \\
+
+Note that each of the other reviewers specifically commended the conclusions. \\
+ I do appreciate the reviewer calling attention to this section as I did find a misspelling that has now been corrected.   }
+
+
+
+
+
+\end{document}

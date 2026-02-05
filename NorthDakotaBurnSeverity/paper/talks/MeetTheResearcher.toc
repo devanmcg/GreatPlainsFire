@@ -1,0 +1,3 @@
+\beamer@sectionintoc {1}{Measuring wildland fire}{4}{0}{1}
+\beamer@sectionintoc {2}{Seasonality \& management}{9}{0}{2}
+\beamer@sectionintoc {3}{Social barriers}{24}{0}{3}
