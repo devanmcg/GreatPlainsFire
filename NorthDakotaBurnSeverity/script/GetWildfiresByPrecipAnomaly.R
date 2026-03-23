@@ -1,3 +1,4 @@
+pacman::p_load(tidyverse, sf)
 
 # study area 
   ngp <- read_sf('./data/SeverityComparison.gpkg', 'StudyRegion')
@@ -156,12 +157,17 @@ range_fires %<>%
   gp_perims %>%
     st_transform(4326) %>%
     st_write('./data/SeverityComparison.gpkg', 'GreatPlainsWF', append = FALSE)
+  
+  gp_perims <- read_sf('./data/SeverityComparison.gpkg', 
+                       'GreatPlainsWF') %>%
+                st_transform(st_crs(ngp))
 
   for(i in 1:length(unique(gp_perims$FireCode))) {
-    wd = "S:/DevanMcG/FireScience/Sentinel/SeverityComparison/AOIs"
+    wd = "S:/DevanMcG/FireScience/Sentinel/SeverityComparison/AOIsBuffered"
     fire = unique(gp_perims$FireCode)[i] 
     gp_perims %>%
       filter(FireCode == fire) %>%
+      st_buffer(10000) %>%   # added to ensure capturing PIFs
       st_transform(4326) %>%
       st_bbox() %>%
       st_as_sfc() %>% 
