@@ -153,31 +153,12 @@ range_fires %<>%
     
     precip_perims %>% 
     filter(FireName == 'Dorothy Draw')
-  
+ 
+# Export for modification in QGIS (some perimeters from NIFC are wonky) 
   gp_perims %>%
     st_transform(4326) %>%
     st_write('./data/SeverityComparison.gpkg', 'GreatPlainsWF', append = FALSE)
-  
-  gp_perims <- read_sf('./data/SeverityComparison.gpkg', 
-                       'GreatPlainsWF') %>%
-                st_transform(st_crs(ngp))
 
-  for(i in 1:length(unique(gp_perims$FireCode))) {
-    wd = "S:/DevanMcG/FireScience/Sentinel/SeverityComparison/AOIsBuffered"
-    fire = unique(gp_perims$FireCode)[i] 
-    gp_perims %>%
-      filter(FireCode == fire) %>%
-      st_buffer(10000) %>%   # added to ensure capturing PIFs
-      st_transform(4326) %>%
-      st_bbox() %>%
-      st_as_sfc() %>% 
-      st_write(., paste0(wd, '/', fire, '.kml'), append = FALSE )}
-  
-  gp_perims %>% 
-    filter(FireCode == 'Coyote_2017') %>%
-    ggplot() + theme_bw() +
-    geom_sf() 
-  
   
   ppt_grd %>%
     st_intersection(ngp, .) %>%

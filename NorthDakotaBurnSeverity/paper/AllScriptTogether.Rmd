@@ -70,7 +70,6 @@ Some steps rely on data manipulated externally in QGIS.
     st_intersection(ngp)
 ```
 
-
 ## Data aquisition
 
 ## Regional precipitation and anomalies
@@ -278,116 +277,437 @@ This script was used to create and export rectangular Area of Interest (AOI) \te
       st_write(., paste0(wd, '/', fire, '.kml'), append = FALSE )}
 ```
 
-This EvalScript for the Copernicus browser exports Normalized Burn Ratio (NBR) and Normalized Differenced Vegetation Index (NDVI) for the active AOI. 
+This EvalScript for the Copernicus browser exports raw band data required for Psuedo-Invariant Feature correction and  Normalized Burn Ratio (NBR) calculation. 
 
 \begin{lstlisting}[language=Java]
 
 //VERSION=3
 function setup() {
   return {
-    input: ["B04", "B08", "B12"],
-    output: { bands: 2, sampleType: "UINT16" }
+    input: ["B03", "B04", "B08", "B12"],
+    output: { bands: 4, sampleType: "UINT16" }
   };
 }
 
 function evaluatePixel(sample) {
-  let nbr = index(sample.B08, sample.B12);
-  let ndvi = index(sample.B08, sample.B04);
+  let green = sample.B03;
+  let red = sample.B04;
+ let nir = sample.B08;
+  let swir = sample.B12;
   // apply offset for UINT16 
-  return [10000 * nbr + 10000, 
-          10000 * ndvi + 10000]; 
+  return [10000 * green + 10000, 
+          10000 * red + 10000, 
+	  10000 * nir + 10000, 
+          10000 * swir + 10000]; 
 }
 \end{lstlisting}
 
-## Processing imagery
+## PIF corrections and dNBR calculations
 
 ```{r}
-  # load perimeters after editing in QGIS
-    wf_sf <- read_sf('./SpatialData.gpkg', 'GreatPlainsModifiedWF')
+pacman::p_load(tidyverse, magrittr, readxl, sf, terra, tidyterra)
+
+# Function to calculate NBR 
+    calc_nbr <- function(nir, swir) {
+                  return((nir - swir) / (nir + swir)) }
+# Locally-saved Sentinel-2 imagery
+  rx_dir = 'C:/.../Sentinel/Rx' 
+```
+
+### Prescribed burns
+
+#### Thermocouple sample points 
+
+```{r}
+# Load Rx fire data
+  # burn & imagery dates 
+    rx_dates <-read_xlsx("S:/DevanMcG/FireScience/Sentinel/SeverityComparison/ImageDates.xlsx", 
+                         'PreBurnPostDatesRxND') %>%
+                mutate(across(c(BurnDate:PostBurn), ~ as.character(.x)))
+# spatial & fire data for the thermocouples 
+  rx_sf <- read_sf('./paper/SpatialData.gpkg', 'RxBurnData')
+
+# Imagery
+  rx_dir = 'C:/.../SeverityComparison/Rx'
+  
+  rx_images <- 
+    tibble(file = list.files(rx_dir, pattern = "\\.tiff$", ignore.case = TRUE) ) %>% 
+    mutate(info = str_remove(file, '.tiff')) %>%
+    separate(info, into = c('location', 'ImageDate', 'type'), sep = '_') %>%
+    mutate(location = replace_values(location, 'DAY' ~ 'Dayton')) 
+
+  RxSeverity <- tibble() 
+
+##
+## Location-specific corrected dNBR rasters
+##
+  
+# Change manually and send loop on its way
+  loc = 'CGREC'
+  loc = 'HREC'
+  loc = 'Dayton'
+{
+  begin = Sys.time()
+  rx_d <- filter(rx_dates, location == loc)
+  lc = tolower(loc)
+  loc_sf <- st_read('./data/OriginalRxBurnPerims.gpkg', lc, quiet = TRUE) %>%
+            st_transform(4326) 
+  tc_zones <- filter(rx_sf, location == loc) %>%
+              mutate(area = st_area(.) ) %>% 
+              group_by(burn) %>%
+              summarise(area = sum(area))  %>%
+              st_centroid() %>%
+              st_buffer(100) 
+
+  dNBR <- list() 
+    for(i in 1:length(rx_d$BurnDate)) {
+      date = slice(rx_d, i)
+
+    #
+    # Step 1: Create cloud & shadow mask from Scene Classification Layers
+    #
+    # Load, wrangle SCL as output by Copernicus GUI
+      # Pre-fire SCL 
+        pre_scl = filter(rx_images, location == loc, 
+                                    type == 'SCL', 
+                                    ImageDate == date$PreBurn)$file
+        PreSCL <- paste0(rx_dir, '/', pre_scl) %>% 
+                      rast() 
+        names(PreSCL) <- c('r', 'g', 'b', 'dm')
+        PreSCL %<>%
+          mutate(sc = case_when(
+            r == 0 & g == 0 & b  == 0 ~ 0, 
+            r == 255 & g == 0 & b== 0 ~ 1, 
+            r == 47 & g == 47 & b == 47 ~ 2,
+            r == 100 & g == 50 & b == 0 ~ 3,
+            r == 0 & g == 161 & b == 0 ~ 4,        # 160 -> 161
+            r == 255 & g == 231 & b == 90 ~ 5,     # 230 -> 231
+            r == 0 & g == 0 & b == 255 ~ 6, 
+            r == 129 & g == 129 & b == 129 ~ 7,   #  128 -> 129
+            r == 193 & g == 193 & b == 193 ~ 8,   #  192 -> 193
+            r == 255 & g == 255 & b == 255 ~ 9, 
+            r == 100 & g == 201 & b == 255 ~ 10,  # g 200 -> 201
+            r == 255 & g == 150 & b == 255 ~ 11, 
+            TRUE ~ 99 ), 
+            sc = as.ordered(sc)) %>%
+          select(sc)
+      # Post fire SCL
+        post_scl = filter(rx_images, location == loc, 
+                          type == 'SCL', 
+                          ImageDate == date$PostBurn)$file
+        PostSCL <- paste0(rx_dir, '/', post_scl) %>% 
+                    rast() 
+        names(PostSCL) <- c('r', 'g', 'b', 'dm')
+        PostSCL %<>%
+          mutate(sc = case_when(
+            r == 0 & g == 0 & b  == 0 ~ 0, 
+            r == 255 & g == 0 & b== 0 ~ 1, 
+            r == 47 & g == 47 & b == 47 ~ 2,
+            r == 100 & g == 50 & b == 0 ~ 3,
+            r == 0 & g == 161 & b == 0 ~ 4,        # g 160 -> 161
+            r == 255 & g == 231 & b == 90 ~ 5,     # g 230 -> 231
+            r == 0 & g == 0 & b == 255 ~ 6, 
+            r == 129 & g == 129 & b == 129 ~ 7,   #  128 -> 129
+            r == 193 & g == 193 & b == 193 ~ 8,   #  192 -> 193
+            r == 255 & g == 255 & b == 255 ~ 9, 
+            r == 100 & g == 201 & b == 255 ~ 10,  # g 200 -> 201
+            r == 255 & g == 150 & b == 255 ~ 11, 
+            TRUE ~ 99 ), 
+            sc = as.ordered(sc)) %>%
+          select(sc)
+        # Define classifications to exclude
+          ex_sc <- c(0, 2, 3, 7:11) %>% as.ordered() 
+        # Get the excluded classifications for each image
+          pre_mask <- 
+            PreSCL %>%
+            mutate(sc = ifelse(sc %in% ex_sc, 1, 0)) 
+          post_mask <- 
+            PostSCL %>%
+            mutate(sc = ifelse(sc %in% ex_sc, 1, 0)) 
+          
+        # Combine pre and post masks
+          CombinedMask <- pre_mask + post_mask 
+        # Add back in TC sample areas in case they got excluded
+          CombinedMask %<>%  mutate(sc = ifelse(sc >= 1, 1, 0))
+          
+          tc_pixels <- tc_zones %>% 
+                    rasterize(CombinedMask, background = 0) %>%
+                    mutate(layer = ifelse(layer == 1, -1, 0)) 
+          CombinedMask2 <- CombinedMask + tc_pixels
+          CombinedMask2 %<>% mutate(sc = ifelse(sc <= 0, 0, 1),
+                                    sc = ifelse(sc >= 1, NA, 1))
+    #
+    # Step 2: PIF correction on post-fire image
+    #
+      ## Load raw bands
+        # pre image
+          pre_raw = filter(rx_images, location == loc, 
+                           type == 'RAW', 
+                           ImageDate == date$PreBurn)$file
+          pre_path = paste0(rx_dir, '/', pre_raw)
+          pre_ras <- rast(pre_path) %>% 
+                        mask(., CombinedMask2)
+          pre_ras <-  (pre_ras-10000)/10000
+          names(pre_ras) <- c('green', 'red', 'nir', 'swir')
+        # post-fire
+          post_raw = filter(rx_images, location == loc, 
+                            type == 'RAW', 
+                            ImageDate == date$PostBurn)$file
+          post_path = paste0(rx_dir, '/', post_raw)
+          post_ras <- rast(post_path) %>% 
+                        mask(., CombinedMask2)
+          post_ras = (post_ras-10000)/10000
+          names(post_ras) <- c('green', 'red', 'nir', 'swir')
+      # PIF correction 
+        # Calculate the absolute difference for PIF-sensitive bands
+          diff_img <- abs(pre_ras[[c('green', 'red', 'swir')]] - 
+                            post_ras[[c('green', 'red', 'swir')]])
+        # Sum the differences across bands to get a "change magnitude" map
+          mag <- sum(diff_img)
+        # Define a threshold for "No Change" (e.g., the bottom 1% of pixels) 
+          thresh <- quantile(values(mag, na.rm=TRUE), probs = 0.01)
+        # Create PIF mask
+          pif_mask = ifel(mag >= thresh, NA, mag)
+        # Ensure there are enough relatively-invariant pixels to do regression
+          pif_pix <- values(pif_mask$sum, na.rm=TRUE) %>% length()  
+          if(pif_pix < 100) { 
+            thresh <- quantile(values(mag, na.rm=TRUE), probs = 0.1)
+            pif_mask = ifel(mag >= thresh, NA, mag)
+            pif_pix <- values(pif_mask$sum, na.rm=TRUE) %>% length() 
+          }
+        # Apply mask to images
+          ref_pifs <- mask(pre_ras, pif_mask)   # Pre-burn reference image
+          subj_pifs <- mask(post_ras, pif_mask) # subject image to correct
+    ## A PIF correction loop combining Jay's script and`landsat::PIF` example
+      # stash list
+        corr_bands <- list()
+      # loop through layers to get PIF pixels
+        for(l in 1:nlyr(pre_ras)) {
+          # Get PIF values for the current band
+            vals <- tibble(
+                      ref_val = values(ref_pifs[[l]], na.rm=TRUE),
+                      subj_val = values(subj_pifs[[l]], na.rm=TRUE) 
+                      )
+          # Fit the linear model
+            post.corr <- lm(vals[[1]] ~ vals[[2]])$coefficients
+            m = post.corr[[2]]
+            b = post.corr[[1]]
     
-    wf_dir = 'Folder/With/Sentinel/Imagery'
-    
-    wf_images <- 
-      tibble(file = list.files(wf_dir, pattern = "\\.tiff$", ignore.case = TRUE) ) %>% 
-      mutate(info = str_remove(file, '.tiff')) %>%
-      separate(info, into = c('FireCode', 'period', 'ImageDate'), sep = '_') %>%
-      mutate(FireCode = str_replace(FireCode, '-', '_'))
-    
-    wildfires <- wf_sf %>% 
-                filter(FireCode %in% unique(wf_images$FireCode) ) %>%
-                st_transform(albersEAC) %>%
-                mutate(AreaHa = st_area(.), 
-                       AreaHa = as.numeric(AreaHa) * 0.0001) 
-  # Sample raster imagery
-   WfBurnIndices <- tibble() 
-    for(i in 1:length(wildfires$FireCode)) {
-      # Get fire
-        fire <-  wildfires %>% 
-                  filter(FireCode == unique(wildfires$FireCode)[i]) %>%
-                  st_transform(st_crs(r_rr))
-      # create gridded sample points
-        buff <- fire  %>% st_buffer(-20)
-        # cell size factor scaled to total area
-          cs = case_when(
-            fire$AreaHa < 10 ~ 25, 
-            between(fire$AreaHa, 10, 50) ~ 36,
-            between(fire$AreaHa, 50, 100) ~ 50, 
-            between(fire$AreaHa, 100, 200) ~ 100, 
-            between(fire$AreaHa, 200, 300) ~ 125, 
-            between(fire$AreaHa, 300, 500) ~ 150, 
-            between(fire$AreaHa, 500, 700) ~ 200, 
-            between(fire$AreaHa, 700, 3000) ~ 300, 
-            between(fire$AreaHa, 3000, 5000) ~ 500, 
-            between(fire$AreaHa, 5000, 7000) ~ 700,
-            fire$AreaHa > 7000 ~ 1000 )
-        pts <- buff %>%
-          st_make_grid(cellsize = cs, 
-                       square = FALSE) %>% 
-          st_centroid() %>%
-          st_intersection(buff) %>%
-          st_as_sf() %>%
-          rowid_to_column('ID')
-       # Filter sample points to rangeland cells
-          r_pts <-  
-            terra::extract(rr_tr, 
-                          terra::vect(pts), 
-                          df = TRUE) %>%
-            filter(LABEL %in% c('Rangeland', 
-                                'Transitional Rangeland', 
-                                'Afforested CO') ) 
-          pts %<>% filter(ID %in% r_pts$ID) %>%
-                    st_transform(4326)
-    # dNBR & NDVI
-      # Fetch & process multi-band rasters
-      # pre image
-        pre_image = filter(wf_images, FireCode == fire$FireCode, , 
-                           period == 'B')$file
-        pre_path = paste0(wf_dir, '/', pre_image)
-        pre_ras <- terra::rast(pre_path) %>%
-                    terra::crop(terra::vect(fire %>% st_transform(4326)))
-        pre_ras <-  (pre_ras-10000)/10000
-      # post-fire
-        post_image = filter(wf_images, FireCode == fire$FireCode, , 
-                            period == 'A')$file
-        post_path = paste0(wf_dir, '/', post_image)
-        post_ras <- terra::rast(post_path) %>%
-                    terra::crop(terra::vect(fire %>% st_transform(4326)))
-        post_ras = (post_ras-10000)/10000
-      # Calculate dNBR & replace in pre-fire raster
-        d_ras = pre_ras[[1]]- post_ras[[1]]
-        pre_ras[[1]] <- d_ras
-        names(pre_ras) <- c('dNBR', 'ndvi')
-      # Sample rasters
-        terra::extract(pre_ras[[1:2]],
-                       pts %>%
-                         terra::vect(), 
-                       fun = mean, 
-                       method = 'bilinear',
-                       bind = TRUE)  %>% 
-        as_tibble() %>%
-     add_column(FireCode=fire$FireCode, .before = 1 ) %>%
-     bind_rows(., WfBurnIndices) -> WfBurnIndices
+          # Apply correction to the entire subject band
+            corr_bands[[l]] <- (m * post_ras[[l]]) + b
+        }
+      
+      # Merge corrected bands back into a single SpatRaster & crop to pastures
+        corr_rast <- rast(corr_bands ) %>%
+                        crop(loc_sf )
+      # crop the pre-burn image to pastures as well
+        pre_burn <- pre_ras %>% crop(loc_sf)
+        # post_burn <- post_ras %>% crop(loc_sf)   # raw
+    #
+    # Step 3: Calculate dNBR from pre- and corrected post imagery
+    #
+      # create NBR rasters for pre and corrected post
+        nbr_pre <- calc_nbr(pre_burn$nir, pre_burn$swir )  
+        nbr_post <- calc_nbr(corr_rast$nir, corr_rast$swir) # post-fire, corrected
+        # nbr_post_raw <- calc_nbr(post_burn$nir, post_burn$swir) # post-fire, raw
+        
+      # Calculate dNBR
+        dnbr <- (nbr_pre - nbr_post) %>% rename(dNBR = nir)
+        names(dnbr) <- date$BurnDate
+        dNBR[[i]] <- dnbr
     }
+        rast(dNBR ) %>%
+          writeRaster(paste0('./data/RxRasters/TC/', loc, '.tiff'), overwrite=TRUE)
+```
+
+#### Entire pastures
+
+```{r}
+# Load Rx fire data
+  rx_perims <- read_sf('./paper/SpatialData.gpkg', 'RxBurnPerimeters')
+
+# Identify unique post-burn dates to calculate severity for 
+  rx_perims %<>%
+    select(location, burn, PostBurn, PreBurn) %>%
+    mutate(location = case_when(
+                        location %in% c('Fitch', 'Clement') ~ 'HREC', 
+                        TRUE ~ location
+                      )) %>%
+    arrange(location, PostBurn) %>%
+    mutate(DeltaPair = paste0(PostBurn, '_', PreBurn)) 
+  
+  DeltaPairs <- 
+    rx_perims %>%
+        as_tibble() %>%
+      group_by(location) %>%
+      distinct(DeltaPair) %>%
+        ungroup() %>%
+      separate(DeltaPair, into = c("PostBurn", "PreBurn"), sep = '_', remove = F )
+
+  rx_images <- 
+    tibble(file = list.files(rx_dir, pattern = "\\.tiff$", ignore.case = TRUE) ) %>% 
+    mutate(info = str_remove(file, '.tiff')) %>%
+    separate(info, into = c('location', 'ImageDate', 'type'), sep = '_') %>%
+    mutate(location = replace_values(location, 'DAY' ~ 'Dayton')) 
+##
+## Location-specific corrected dNBR rasters
+##
+  for(i in 1:length(unique(DeltaPairs$location))) {
+    loc = unique(DeltaPairs$location)[i]
+    dp_d <- filter(DeltaPairs, location == loc)
+    loc_sf <- rx_perims %>% filter(location == loc) # for cropping dNBR raster
+    dNBR <- list() 
+    cat(paste('Starting', loc, '...'))
+    for(j in 1:length(dp_d$DeltaPair)) {
+      dp = slice(dp_d, j)
+
+    #
+    # Step 1: Create cloud & shadow mask from Scene Classification Layers
+    #
+    # Load, wrangle SCL as output by Copernicus GUI
+      # Pre-fire SCL 
+        pre_scl = filter(rx_images, location == dp$location, 
+                                    type == 'SCL', 
+                                    ImageDate == dp$PreBurn)$file
+        PreSCL <- paste0(rx_dir, '/', pre_scl) %>% 
+                      rast() 
+        names(PreSCL) <- c('r', 'g', 'b', 'dm')
+        PreSCL %<>%
+          mutate(sc = case_when(
+            r == 0 & g == 0 & b  == 0 ~ 0, 
+            r == 255 & g == 0 & b== 0 ~ 1, 
+            r == 47 & g == 47 & b == 47 ~ 2,
+            r == 100 & g == 50 & b == 0 ~ 3,
+            r == 0 & g == 161 & b == 0 ~ 4,        # 160 -> 161
+            r == 255 & g == 231 & b == 90 ~ 5,     # 230 -> 231
+            r == 0 & g == 0 & b == 255 ~ 6, 
+            r == 129 & g == 129 & b == 129 ~ 7,   #  128 -> 129
+            r == 193 & g == 193 & b == 193 ~ 8,   #  192 -> 193
+            r == 255 & g == 255 & b == 255 ~ 9, 
+            r == 100 & g == 201 & b == 255 ~ 10,  # g 200 -> 201
+            r == 255 & g == 150 & b == 255 ~ 11, 
+            TRUE ~ 99 ), 
+            sc = as.ordered(sc)) %>%
+          select(sc)
+      # Post fire SCL
+        post_scl = filter(rx_images, location == dp$location, 
+                          type == 'SCL', 
+                          ImageDate == dp$PostBurn)$file
+        PostSCL <- paste0(rx_dir, '/', post_scl) %>% 
+                    rast() 
+        names(PostSCL) <- c('r', 'g', 'b', 'dm')
+        PostSCL %<>%
+          mutate(sc = case_when(
+            r == 0 & g == 0 & b  == 0 ~ 0, 
+            r == 255 & g == 0 & b== 0 ~ 1, 
+            r == 47 & g == 47 & b == 47 ~ 2,
+            r == 100 & g == 50 & b == 0 ~ 3,
+            r == 0 & g == 161 & b == 0 ~ 4,        # g 160 -> 161
+            r == 255 & g == 231 & b == 90 ~ 5,     # g 230 -> 231
+            r == 0 & g == 0 & b == 255 ~ 6, 
+            r == 129 & g == 129 & b == 129 ~ 7,   #  128 -> 129
+            r == 193 & g == 193 & b == 193 ~ 8,   #  192 -> 193
+            r == 255 & g == 255 & b == 255 ~ 9, 
+            r == 100 & g == 201 & b == 255 ~ 10,  # g 200 -> 201
+            r == 255 & g == 150 & b == 255 ~ 11, 
+            TRUE ~ 99 ), 
+            sc = as.ordered(sc)) %>%
+          select(sc)
+        # Define classifications to exclude
+          ex_sc <- c(0, 2, 3, 7:11) %>% as.ordered() 
+        # Get the excluded classifications for each image
+          pre_mask <- 
+            PreSCL %>%
+            mutate(sc = ifelse(sc %in% ex_sc, 1, 0)) 
+          post_mask <- 
+            PostSCL %>%
+            mutate(sc = ifelse(sc %in% ex_sc, 1, 0)) 
+        # Combine pre and post masks
+          CombinedMask <- pre_mask + post_mask 
+          CombinedMask %<>% mutate(sc = ifelse(sc >= 1, NA, 1))
+    #
+    # Step 2: PIF correction on post-fire image
+    #
+      ## Load raw bands
+        # pre image
+          pre_raw = filter(rx_images, location == dp$location, 
+                           type == 'RAW', 
+                           ImageDate == dp$PreBurn)$file
+          pre_path = paste0(rx_dir, '/', pre_raw)
+          pre_ras <- rast(pre_path) %>% 
+                        mask(., CombinedMask)
+          pre_ras <-  (pre_ras-10000)/10000
+          names(pre_ras) <- c('green', 'red', 'nir', 'swir')
+        # post-fire
+          post_raw = filter(rx_images, location == dp$location, 
+                            type == 'RAW', 
+                            ImageDate == dp$PostBurn)$file
+          post_path = paste0(rx_dir, '/', post_raw)
+          post_ras <- rast(post_path) %>% 
+                        mask(., CombinedMask)
+          post_ras = (post_ras-10000)/10000
+          names(post_ras) <- c('green', 'red', 'nir', 'swir')
+      # PIF correction 
+        # Calculate the absolute difference for PIF-sensitive bands
+          diff_img <- abs(pre_ras[[c('green', 'red', 'swir')]] - 
+                            post_ras[[c('green', 'red', 'swir')]])
+        # Sum the differences across bands to get a "change magnitude" map
+          mag <- sum(diff_img)
+        # Define a threshold for "No Change" (e.g., the bottom 1% of pixels) 
+          thresh <- quantile(values(mag, na.rm=TRUE), probs = 0.01)
+        # Create PIF mask
+          pif_mask = ifel(mag >= thresh, NA, mag)
+        # Ensure there are enough relatively-invariant pixels to do regression
+          pif_pix <- values(pif_mask$sum, na.rm=TRUE) %>% length()  
+          if(pif_pix < 100) { 
+            thresh <- quantile(values(mag, na.rm=TRUE), probs = 0.1)
+            pif_mask = ifel(mag >= thresh, NA, mag)
+            pif_pix <- values(pif_mask$sum, na.rm=TRUE) %>% length() 
+          }
+        # Apply mask to images
+          ref_pifs <- mask(pre_ras, pif_mask)   # Pre-burn reference image
+          subj_pifs <- mask(post_ras, pif_mask) # subject image to correct
+    ## PIF correction loop 
+      # stash list
+        corr_bands <- list()
+      # loop through layers to get PIF pixels
+        for(l in 1:nlyr(pre_ras)) {
+          # Get PIF values for the current band
+            vals <- tibble(
+                      ref_val = values(ref_pifs[[l]], na.rm=TRUE),
+                      subj_val = values(subj_pifs[[l]], na.rm=TRUE) 
+                      )
+          # Fit the linear model
+            post.corr <- lm(vals[[1]] ~ vals[[2]])$coefficients
+            m = post.corr[[2]]
+            b = post.corr[[1]]
+
+          # Apply correction to the entire subject band
+            corr_bands[[l]] <- (m * post_ras[[l]]) + b
+        } # close band correction loop
+      
+      # Merge corrected bands back into a single SpatRaster & crop to pastures
+        corr_rast <- rast(corr_bands ) %>%
+                        crop(loc_sf )
+      # crop the pre-burn image to pastures as well
+        pre_burn <- pre_ras %>% crop(loc_sf)
+        # post_burn <- post_ras %>% crop(loc_sf)   # raw
+    #
+    # Step 3: Calculate dNBR from pre- and corrected post imagery
+    #
+      # create NBR rasters for pre and corrected post
+        nbr_pre <- calc_nbr(pre_burn$nir, pre_burn$swir )  
+        nbr_post <- calc_nbr(corr_rast$nir, corr_rast$swir) # post-fire, corrected
+        # nbr_post_raw <- calc_nbr(post_burn$nir, post_burn$swir) # post-fire, raw
+        
+      # Calculate dNBR
+        dnbr <- (nbr_pre - nbr_post) %>% rename(dNBR = nir)
+        names(dnbr) <- dp$DeltaPair
+        dNBR[[j]] <- dnbr
+    } # close DeltaPair loop
+    rast(dNBR ) %>%
+      writeRaster(paste0('./data/RxRasters/Pasture/', loc, '.tiff'), overwrite=TRUE)
+  } # close location loop
 ```
 
 # Statistical analysis 
@@ -395,27 +715,27 @@ function evaluatePixel(sample) {
 ## Space-based vs. field-based data
 
 ```{r}
-PlotBurnIndices <- readxl::read_xlsx('SeverityComparisonData.xlsx', 
-                                     'PlotBurnIndices')
-# Testing drivers of burn severity
-  # Canopy temperature
-    mc_0 <- lme4::lmer(dNBR ~ 1 + (1|location/burn), 
-                       REML = FALSE, data = PlotBurnIndices)
-    mc_1 <- lme4::lmer(dNBR ~ MaxC + (1|location/burn), 
-                       REML = FALSE, data = PlotBurnIndices)
-    BurnModels$Sev_v_MaxC <- anova(mc_0, mc_1)
-  # Soil surface temperature
-    sc_0 <- lme4::lmer(dNBR ~ 1 + (1|location/burn), REML = FALSE, 
-                       data = filter(PlotBurnIndices, !is.na(SoilMaxC) ) )
-    sc_1 <- lme4::lmer(dNBR ~ SoilMaxC + (1|location/burn), REML = FALSE, 
-                       data = filter(PlotBurnIndices, !is.na(SoilMaxC)) )
-    BurnModels$Sev_v_SoilMaxC <- anova(sc_0, sc_1)
-  # Rate of spread
-    rs_0 <- lme4::lmer(dNBR ~ 1 + (1|location/burn), REML = FALSE,  
-                        data = filter(PlotBurnIndices, ! is.na(ros)) )
-    rs_1 <- lme4::lmer(dNBR ~ ros + (1|location/burn), REML = FALSE,  
-                        data = filter(PlotBurnIndices, ! is.na(ros)) )
-    BurnModels$Sev_v_ROS <- anova(rs_0, rs_1)
+sev_dat <- readxl::read_xlsx('SeverityComparisonData.xlsx', 
+                             'PlotBurnIndices')
+# Canopy temperature
+  mc <- lme4::lmer(dNBR ~ MaxC + zone + (1|location/burn), REML = FALSE, data = sev_dat )
+
+    car::Anova(mc)
+    MuMIn::r.squaredGLMM(mc)
+
+# Soil surface temperature
+  sc <- lme4::lmer(dNBR ~ SoilMaxC + zone + (1|location/burn), REML = FALSE, 
+                     data = filter(sev_dat, !is.na(SoilMaxC)) )
+  
+  car::Anova(sc)
+  MuMIn::r.squaredGLMM(sc)
+
+# Rate of spread
+  rs <- lme4::lmer(dNBR ~ ros + zone + (1|location/burn), REML = FALSE,  
+                     data = filter(sev_dat, ! is.na(ros)) )
+  
+  car::Anova(rs)
+  MuMIn::r.squaredGLMM(rs)
 ```
 
 ## Wildfires vs. Rx burns
@@ -431,7 +751,7 @@ reg_dat <- readxl::read_xlsx('SeverityComparisonData.xlsx',
       
     anova(sev_0, sev_int)
       
-    BurnModels$type_comp <- emmeans::emmeans(sev_int, ~  type | zone) 
+    type_comp <- emmeans::emmeans(sev_int, ~  type | zone) 
 
-    emmeans::joint_tests(BurnModels$type_comp, by = 'zone') 
+    emmeans::joint_tests(type_comp, by = 'zone') 
 ```

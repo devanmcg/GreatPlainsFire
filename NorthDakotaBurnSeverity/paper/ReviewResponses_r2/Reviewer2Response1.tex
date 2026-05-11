@@ -1,0 +1,99 @@
+\documentclass[parskip=half, american]{scrartcl}
+\usepackage{booktabs}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[colorlinks=true,
+			citecolor=blue,
+			urlcolor=blue,
+			linkcolor=blue,
+			pdfborder={0 0 0}]
+	{hyperref}
+	
+\newcommand{\AR}[1]
+	{\color{PineGreen}AR: #1\color{black} \par }
+	
+\newcommand{\journal}{\emph{Fire}}
+
+
+\title{\Large Remote sensing in rangeland fire ecology: Comparing imagery to measured fire behavior, and burn severity across prescribed burns and wildfires  }
+\subtitle{Response to review}
+\author{ }
+\date{}
+
+\pagenumbering{gobble}
+\raggedright 
+
+\begin{document}
+
+\maketitle
+
+\vspace{-2cm} 
+
+\AR{Author Responses (AR) appear below in this green text.}
+
+\section*{Reviewer 2}
+
+The manuscript ``Remote sensing in rangeland fire ecology: Comparing imagery to measured fire behavior, and burn severity across prescribed burns and wildfires'' is a well written manuscript that explores the links between remote sensing and prescribed burns/ wildfires in the Great Plains. The introduction begins talking about the inadequacies of thermocouplers for estimating fire behavior, and then proceeds to link remotely sensed $\Delta$NBR values with in-field measurements of flame length, rate of fire spread, and soil surface temperature.
+
+\AR{I appreciate the feedback and your support for the paper.}
+
+The link between fire behavior (fire intensity) and burn severity needs to be explored more in the paper. 
+The manuscript needs to establish the links between thermocouple temperature -> flame length -> fire intensity -> dNBR. 
+This is an area of active exploration and has not been firmly established, as far as I know.
+
+\AR{Several paragraphs about linkages and potential mis-matches between the RS metrics and on-the-ground fire behavior measurements have been added to the Discussion.  }
+
+The statistical analyses are appropriate. However, I think the paper would benefit from additional analyses. While the linear regression shows that $Delta$NBR performs better than the null model for predicting field-measured flame length, this is a bit of a straw-man and should be expanded before publication. Specifically, what is the R2? What is the RMSE, so that the readers can think about predictive power of simply using Sentinel data?
+
+\AR{The statistical analysis has been re-done to consider the effect of zone. 
+	Far from a unique straw-man argument made here, determining whether there is evidence for a hypothesized relationship such that the null model might be rejected is the underlying principal of Null Hypothesis Statistical Testing. 
+	However, the matrix algebra mixed-effect models rely upon to make such tests is such that some software authors have determined the conventional $P$ values many (over) rely on to interpret NHST results are inappropriate. 
+	When such software is used, as in the \emph{lme4} package here, there are additional steps to return a $P$ value for the same test statistics. 
+	\\
+	Likewise, goodness-of-fit statistics are not straightforward for mixed-effect models. 
+	That said, approaches have been developed and an established one is used here to provide marginal and conditional $R^2$ values. 
+	\\
+	In over 80 publications I've never calculated, reported, or interpreted RMSE and do not see how it will be informative to readers here. }
+
+Specific questions that I have.
+
+\begin{enumerate} 
+\item What was the average, min, and max between pre and post NBR images?
+\item[] \AR{ A table with these values has been added. }
+
+\item Do you think adding in weather conditions into the model would help elucidate some of the deviance between prescribed burns and wildfires?
+
+\item[] \AR{While this stands to reason, it would be impossible to get historical weather data at a useful scale for the historical wildfires, especially those that occurred over more than one operational period. 
+Note also that there isn't deviation between the fire types in the Western zone, and the effects of weather and fuel, especially litter, in the eastern zone are discussed with reference to publications that specifically address the relationship between fire behavior, fuels, and weather in the Rx fires in the Eastern zone. }
+
+\item If thermocouplers are inadequate, then what is the advantage of calculating $\Delta$NBR and comparing to measurements from thermocouplers?
+
+\item[] \AR{While raw data from thermocouples is not ideal, I wouldn't characterize them as inadequate. 
+	Additionally the Introduction specifically discusses how time-temperature data from thermocouples can be used to calculate the superior metric, rate of spread, in a manner that is cheaper and easier than any other measure I can think of for landscape-scale burns. 
+	Thus, thermocouples are not inadequate. } 
+\end{enumerate}
+
+L34-39: This statement is overly broad, as there are multiple papers that compare in-field measurements with satellite imagery.
+
+\AR{I would have greatly appreciated the reviewer providing specific references to these papers, as I am not aware of them. }
+
+L122: I would integrate this section into the beginning of the introduction. It explains why fires are important for the Great Plains and how colonization changed the fire regime. 
+
+\AR{The reviewer makes an interesting point. 
+	In the interest of an international audience, the section has been left alone, as the intention is to first focus the paper on the relationship between remotely-sensed data and field-based measurements, using the Great Plains as a source of data. 
+	The intention of the paper is neither to focus on why fires are important for the Great Plains, nor how colonization changed the fire regime. 
+	This information is given simply to provide the international reader context. }
+
+L322: What does ``colonial vanguard'' mean? Explain for the reader.
+
+\AR{Replaced with the more elementary ``Early colonists''} 
+
+L340: I think that if you spend more time in the results explaining the predictive power of $\Delta$NBR this would be more defensible. 
+
+\AR{I appreciate the point. While explanation is not appropriate in the Results section, I have sought to describe the relationship better elsewhere in the Discussion. Additional nuance has also been added to such claims. 
+ }
+
+
+
+
+\end{document}

@@ -17,6 +17,16 @@ load('../albersEAC.Rdata')
   
   dates <- read_csv('./data/BurnDates.csv') %>%
             mutate(across(c(BurnDate:PostBurn), ~ as.Date(.x, '%m/%d/%Y')))
+  # output unique values for Copernicus download 
+    dates %>%
+      select(-BurnDate) %>%
+      pivot_longer(names_to = 'period', 
+                   values_to = 'date', 
+                   -location) %>%
+      select(-period) %>% 
+      group_by(location, date) %>%
+      slice(1) %>%
+      write.table("clipboard", sep="\t", row.names=FALSE)
   
   # locations of imagery on S
   {
@@ -105,11 +115,18 @@ load('../albersEAC.Rdata')
     bind_rows(
       read_sf('./data/OriginalRxBurnPerims.gpkg', 'hrec') %>%
         mutate(burn = paste0(location, '_', row_number())) %>%
-        select(location, burn, PreBurn, PostBurn), 
+        select(location, burn, PreBurn, PostBurn) %>%
+        st_transform(4326), 
       read_sf('./data/OriginalRxBurnPerims.gpkg', 'dayton')  %>%
         mutate(burn = paste0(location, '_', row_number())) %>%
-        select(location, burn, PreBurn, PostBurn) )
+        select(location, burn, PreBurn, PostBurn)%>%
+        st_transform(4326), 
+      read_sf('./data/OriginalRxBurnPerims.gpkg', 'cgrec') %>%
+        mutate(burn = paste0(location, '_', row_number())) %>%
+        select(location, burn, PreBurn, PostBurn)%>%
+        st_transform(4326) )
     
+  
     
     rx_dir = 'S:/DevanMcG/Projects/NorthDakotaBurnSeverity/sentinel'
     rx_images <- 

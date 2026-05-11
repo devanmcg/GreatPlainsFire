@@ -4,36 +4,33 @@ pacman::p_load(tidyverse)
 load('./data/BurnIndices.Rdata')
 
 # Burn severity as the response 
-  BurnIndices %>%
+RxPointSeverity %>%
+  filter(dNBR < 0.6)%>%
     mutate(ros = ifelse(ros >= 13, NA, ros)) %>%
     pivot_longer(names_to = 'behavior', 
                  values_to = 'value', 
                  cols = c(MaxC:ros)) %>%
-    ggplot(aes(x = value, y = dNBR)) + theme_bw() +
+    ggplot(aes(x = value, y = dNBR, color = zone)) + theme_bw() +
     geom_smooth(data = . %>%
-                  filter(behavior != 'SoilMaxC'), 
+                filter(behavior != 'SoilMaxC'), 
                 method = 'lm', color = 'black') +
     geom_smooth(data = . %>%
-                  filter(behavior == 'SoilMaxC'), 
-                method = 'lm', lty = 2,
-                se = F, color = 'black') +
+                  filter(behavior == 'SoilMaxC'),
+                method = 'lm') +
     geom_point() +
     facet_wrap(~behavior, scales = 'free_x')
-  
-# NDVI as the predictor 
-  BurnIndices %>%
-    mutate(ros = ifelse(ros >= 13, NA, ros)) %>%
-    pivot_longer(names_to = 'response', 
-                 values_to = 'value', 
-                 cols = c(MaxC:dNBR)) %>%
-    ggplot(aes(x = ndvi, y = value, color = location)) + theme_bw() +
-    geom_smooth(data = . %>%
-                  filter(response != 'SoilMaxC'), 
-                method = 'lm', color = 'black') +
-   #  geom_smooth(method = 'lm', se = FALSE) +
-    geom_point() +
-    facet_wrap(~response, scales = 'free_y')
 
+RxPointSeverity %>%
+  mutate(ros = ifelse(ros >= 13, NA, ros), 
+         zone = ifelse(location == 'CGREC', 'East', 'West')) %>%
+  pivot_longer(names_to = 'behavior', 
+               values_to = 'value', 
+               cols = c(MaxC:ros)) %>%
+  ggplot(aes(x = value, y = dNBR, color = zone)) + theme_bw() +
+  geom_smooth(method = 'lm') +
+  geom_point() +
+  facet_wrap(~behavior, scales = 'free_x')
+  
 # Histograms 
 
   # Maximum canopy temp
@@ -109,84 +106,72 @@ load('./data/BurnIndices.Rdata')
                     colour="darkred", 
                     size=1.1)
   # dNBR
-    MASS::fitdistr(BurnIndices$dNBR, 'normal')
+    MASS::fitdistr(RxPointSeverity$dNBR, 'normal')
 
-    BurnIndices %>%
+    RxPointSeverity %>%
+      filter(dNBR < 0.6) %>%
       ggplot(aes(x=dNBR)) + theme_bw(16) + 
       geom_histogram(aes(y=after_stat(density)),      
                      binwidth=0.05,
                      colour="black",
                      fill="lightgreen") +
-      coord_cartesian(xlim = c(-0.1,0.55)) + 
+      #coord_cartesian(xlim = c(-0.1,0.55)) + 
       geom_density(alpha=.5, fill="lightblue")  +
       stat_function(data= BurnIndices , 
                     fun = dnorm, 
-                    args=list(mean = 0.257,
-                              sd = 0.12),
+                    args=list(mean = 0.32,
+                              sd = 0.16),
                     colour="blue", 
-                    size=1.1)  
+                    lwd=1.1)  
     
 # Wildfire - Rx comparison 
     
 # dNBR boxplot 
+    sev_cat <-
+      tibble(Severity= c('Unburned', 'Low', 'Mod. low', ' Mod. high', 'High'), 
+             dNBR = c(0.1, 0.27, 0.44, 0.66, 1.3) ) %>%
+      mutate(Severity = as.factor(Severity), 
+             Severity = fct_reorder(Severity, dNBR))
     
-  BurnSeverityData  %>% 
-    mutate(zone = fct_rev(zone), 
-           type = fct_relevel(type, c("Wildfire",'Rx' )), 
-           type = recode(type, 'Rx'= "Prescribed\nburn")) %>%
-    ggplot(aes(x= type, y = dNBR_Mean)) + theme_bw(16) +
-    geom_boxplot(varwidth = TRUE, 
-                 fill = 'lightblue', 
-                 staplewidth = 0.25) +
-    geom_point(data = . %>%
-                 group_by(type, zone) %>%
-                 summarize(Mean = mean(dNBR_Mean)), 
-               aes(y = Mean), 
-               pch = 24, size = 4, 
-               color = 'white', fill = 'darkblue') + 
-    labs(x = 'Fire type', 
-         y = 'Burn severity (dNBR)') +           
-    facet_wrap(~zone, scales = 'free_x') +
-    theme(panel.grid.major.x = element_blank(), 
-          axis.text.x = element_text(color = 'black'))
-  
-# NDVI boxplot 
-  
-  BurnSeverityData  %>% 
-    mutate(zone = fct_rev(zone), 
-           type = fct_relevel(type, c("Wildfire",'Rx' )), 
-           type = recode(type, 'Rx'= "Prescribed\nburn")) %>%
-    ggplot(aes(x= type, y = ndvi_Mean)) + theme_bw(16) +
-    geom_boxplot(varwidth = TRUE, 
-                 fill = 'lightgreen') +
-    geom_point(data = . %>% 
-                 group_by(type, zone) %>%
-                 summarize(Mean = mean(ndvi_Mean)), 
-               aes(y = Mean), 
-               pch = 24, size = 4, 
-               color = 'white', fill = 'darkgreen') + 
+    BurnSeverityData  %>% 
+      filter(Mean_dNBR < 0.6) %>%
+      mutate(zone = fct_rev(zone), 
+             zone = paste0(str_to_title(zone), 'ern zone'),
+             type = fct_relevel(type, c("Wildfire",'Rx' )), 
+             type = recode(type, 'Rx'= "Prescribed\nburn")) %>%
+      ggplot(aes(x= type, y = Mean_dNBR)) + theme_bw(16) +
+      geom_hline(data = filter(sev_cat, dNBR < 0.7),
+                 aes(yintercept = dNBR, 
+                     lty = Severity, 
+                     color = Severity) , 
+                 lwd = 1.1 ) + 
+      geom_boxplot(varwidth = TRUE, 
+                   fill = 'lightblue', 
+                   staplewidth = 0.25) +
+      geom_point(data = . %>%
+                   group_by(type, zone) %>%
+                   summarize(Mean = mean(Mean_dNBR)), 
+                 aes(y = Mean), 
+                 pch = 24, size = 4, 
+                 color = 'white', fill = 'darkblue') + 
+      labs(x = 'Fire type', 
+           y = 'Burn severity (ΔNBR)') +           
+      facet_wrap(~zone, scales = 'free_x') +
+      coord_cartesian(ylim = c(0.08,0.65)) +
+      scale_linetype_manual("Severity class", values = c(1, 3, 2, 5)) + 
+      scale_color_manual("Severity class", 
+                         values = c('grey80', 'grey60', 'grey40', 'grey20')) + 
+      scale_y_continuous(breaks = c(0.1, 0.25, 0.44, 0.66), 
+                         labels = c(0.1, 0.25, 0.44, 0.66)) + 
+      theme(strip.text = element_text(face = 'bold'),
+            panel.grid.major = element_blank(), 
+            panel.grid.minor = element_blank(), 
+            axis.text.x = element_text(color = 'black'), 
+            legend.key.width = unit(2.0, 'cm'), 
+            legend.key = element_rect(hjust = 0.5)) +  
+      guides(linetype = guide_legend(reverse=TRUE), 
+             color = guide_legend(reverse=TRUE)) 
 
-    labs(x = 'Fire type', 
-         y = 'Fuelbed greenness (NDVI)') +           
-    facet_wrap(~zone, scales = 'free_x') +
-    theme(panel.grid.major.x = element_blank(), 
-          axis.text.x = element_text(color = 'black'))
-  
-# dNBR vs NDVI scatterplot
-    
-  BurnSeverityData %>%
-    mutate(zone = fct_rev(zone), 
-           type = fct_relevel(type, c("Wildfire",'Rx' )), 
-           type = recode(type, 'Rx'= "Prescribed\nburn")) %>%
-    ggplot(aes(x = ndvi_Mean, y = dNBR_Mean)) + theme_bw(16) +
-    geom_smooth(aes(color = type, fill = type), 
-                method = 'lm') + 
-    geom_errorbar(aes(ymin = dNBR_Mean - dNBR_SEM, 
-                      ymax = dNBR_Mean + dNBR_SEM)) +
-    geom_errorbarh(aes(xmin = ndvi_Mean - ndvi_SEM, 
-                       xmax = ndvi_Mean + ndvi_SEM)) +
-    geom_point() +
-    facet_wrap(~zone) +
-    labs(x = 'NDVI (fuelbed mean)', 
-         y = 'dNBR (burn unit mean)')
+  # Thresholds
+
     

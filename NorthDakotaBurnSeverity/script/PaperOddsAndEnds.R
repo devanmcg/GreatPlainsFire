@@ -3,9 +3,10 @@ load('../albersEAC.Rdata')
 
 # Create objects for data sharing 
   # Space-based vs Rx comparison
-  load('./data/PlotBurnIndices.Rdata')
-  PlotBurnIndices %>%
-    select(location, burn, plot:dNBR)  %>%
+load('./data/RxPointSeverity.Rdata') # plot-level data 
+ RxPointSeverity %>%
+  filter(between(dNBR, 0, 0.6)) %>%
+    select(zone, location, burn, plot:dNBR)  %>%
     mutate(across(c(MaxC, SoilMaxC), ~ round(., 1)),
            ros = round(ros, 2),
            dNBR = round(dNBR, 3)) %>%
@@ -14,8 +15,10 @@ load('../albersEAC.Rdata')
   # Wildfire vs Rx comparison
     load('./data/BurnSeverityData.Rdata')
     BurnSeverityData %>%
-      select(type:dNBR_Mean) %>%
-      mutate(dNBR_Mean = round(dNBR_Mean, 3)) %>%
+      filter(Mean_dNBR < 0.6) %>%
+      #rename(dNBR = Mean_dNBR) %>%
+      select(zone, type:Mean_dNBR, SEM) %>%
+      mutate(across(c(Mean_dNBR, SEM),  ~round(.x, 3)) ) %>%
       write_csv('./data/BurnSeverityData.csv')
 
   # spatial data 

@@ -2,6 +2,26 @@ pacman::p_load(tidyverse, sf)
 
 load('../albersEAC.Rdata')
 
+# Finalize a prep for archiving 
+st_layers('./data/SeverityComparison.gpkg')
+
+read_sf('./data/SeverityComparison.gpkg', 
+        'GreatPlainsModifiedWF') %>%
+  st_write('./paper/SpatialData.gpkg', 'WildfirePerimeters')
+
+read_sf('./data/SeverityComparison.gpkg', 
+        'rx_perims') %>%
+  st_write('./paper/SpatialData.gpkg', 'RxBurnPerimeters')
+
+read_sf('./data/ThermocouplePlacements.gpkg', 
+                 'AllBurnData') %>%
+  mutate(BurnDate = as.character(date) ) %>%
+  select(-date) %>%
+  full_join(by = c('location', 'BurnDate'), 
+            rx_dates) %>%
+  st_transform(4326) %>%
+  st_write('./paper/SpatialData.gpkg', 'RxBurnData')
+
 # Rx burn locations for mapping 
   gpkg = './data/OriginalRxBurnPerims.gpkg'
 
