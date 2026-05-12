@@ -408,119 +408,838 @@ browser.
 \end{Highlighting}
 \end{Shaded}
 
-This EvalScript for the Copernicus browser exports Normalized Burn Ratio
-(NBR) and Normalized Differenced Vegetation Index (NDVI) for the active
-AOI.
+This EvalScript for the Copernicus browser exports raw band data
+required for Psuedo-Invariant Feature correction and Normalized Burn
+Ratio (NBR) calculation.
 
 \begin{lstlisting}[language=Java]
 
 //VERSION=3
 function setup() {
   return {
-    input: ["B04", "B08", "B12"],
-    output: { bands: 2, sampleType: "UINT16" }
+    input: ["B03", "B04", "B08", "B12"],
+    output: { bands: 4, sampleType: "UINT16" }
   };
 }
 
 function evaluatePixel(sample) {
-  let nbr = index(sample.B08, sample.B12);
-  let ndvi = index(sample.B08, sample.B04);
+  let green = sample.B03;
+  let red = sample.B04;
+ let nir = sample.B08;
+  let swir = sample.B12;
   // apply offset for UINT16 
-  return [10000 * nbr + 10000, 
-          10000 * ndvi + 10000]; 
+  return [10000 * green + 10000, 
+          10000 * red + 10000, 
+      10000 * nir + 10000, 
+          10000 * swir + 10000]; 
 }
 \end{lstlisting}
 
-\subsection{Processing imagery}\label{processing-imagery}
+\subsection{PIF corrections and dNBR
+calculations}\label{pif-corrections-and-dnbr-calculations}
 
 \begin{Shaded}
 \begin{Highlighting}[]
-  \CommentTok{\# load perimeters after editing in QGIS}
-\NormalTok{    wf\_sf }\OtherTok{\textless{}{-}} \FunctionTok{read\_sf}\NormalTok{(}\StringTok{\textquotesingle{}./SpatialData.gpkg\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}GreatPlainsModifiedWF\textquotesingle{}}\NormalTok{)}
+\NormalTok{pacman}\SpecialCharTok{::}\FunctionTok{p\_load}\NormalTok{(tidyverse, magrittr, readxl, sf, terra, tidyterra)}
+
+\CommentTok{\# Function to calculate NBR }
+\NormalTok{    calc\_nbr }\OtherTok{\textless{}{-}} \ControlFlowTok{function}\NormalTok{(nir, swir) \{}
+                  \FunctionTok{return}\NormalTok{((nir }\SpecialCharTok{{-}}\NormalTok{ swir) }\SpecialCharTok{/}\NormalTok{ (nir }\SpecialCharTok{+}\NormalTok{ swir)) \}}
+\CommentTok{\# Locally{-}saved Sentinel{-}2 imagery}
+\NormalTok{  rx\_dir }\OtherTok{=} \StringTok{\textquotesingle{}C:/.../Sentinel/Rx\textquotesingle{}} 
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{Prescribed burns}\label{prescribed-burns}
+
+\paragraph{Thermocouple sample points}\label{thermocouple-sample-points}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Load Rx fire data}
+  \CommentTok{\# burn \& imagery dates }
+\NormalTok{    rx\_dates }\OtherTok{\textless{}{-}}\FunctionTok{read\_xlsx}\NormalTok{(}\StringTok{"S:/DevanMcG/FireScience/Sentinel/SeverityComparison/ImageDates.xlsx"}\NormalTok{, }
+                         \StringTok{\textquotesingle{}PreBurnPostDatesRxND\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+                \FunctionTok{mutate}\NormalTok{(}\FunctionTok{across}\NormalTok{(}\FunctionTok{c}\NormalTok{(BurnDate}\SpecialCharTok{:}\NormalTok{PostBurn), }\SpecialCharTok{\textasciitilde{}} \FunctionTok{as.character}\NormalTok{(.x)))}
+\CommentTok{\# spatial \& fire data for the thermocouples }
+\NormalTok{  rx\_sf }\OtherTok{\textless{}{-}} \FunctionTok{read\_sf}\NormalTok{(}\StringTok{\textquotesingle{}./paper/SpatialData.gpkg\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}RxBurnData\textquotesingle{}}\NormalTok{)}
+
+\CommentTok{\# Imagery}
+\NormalTok{  rx\_dir }\OtherTok{=} \StringTok{\textquotesingle{}C:/.../SeverityComparison/Rx\textquotesingle{}}
+  
+\NormalTok{  rx\_images }\OtherTok{\textless{}{-}} 
+    \FunctionTok{tibble}\NormalTok{(}\AttributeTok{file =} \FunctionTok{list.files}\NormalTok{(rx\_dir, }\AttributeTok{pattern =} \StringTok{"}\SpecialCharTok{\textbackslash{}\textbackslash{}}\StringTok{.tiff$"}\NormalTok{, }\AttributeTok{ignore.case =} \ConstantTok{TRUE}\NormalTok{) ) }\SpecialCharTok{\%\textgreater{}\%} 
+    \FunctionTok{mutate}\NormalTok{(}\AttributeTok{info =} \FunctionTok{str\_remove}\NormalTok{(file, }\StringTok{\textquotesingle{}.tiff\textquotesingle{}}\NormalTok{)) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{separate}\NormalTok{(info, }\AttributeTok{into =} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}location\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}ImageDate\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}type\textquotesingle{}}\NormalTok{), }\AttributeTok{sep =} \StringTok{\textquotesingle{}\_\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{mutate}\NormalTok{(}\AttributeTok{location =} \FunctionTok{replace\_values}\NormalTok{(location, }\StringTok{\textquotesingle{}DAY\textquotesingle{}} \SpecialCharTok{\textasciitilde{}} \StringTok{\textquotesingle{}Dayton\textquotesingle{}}\NormalTok{)) }
+
+\NormalTok{  RxSeverity }\OtherTok{\textless{}{-}} \FunctionTok{tibble}\NormalTok{() }
+
+\DocumentationTok{\#\#}
+\DocumentationTok{\#\# Location{-}specific corrected dNBR rasters}
+\DocumentationTok{\#\#}
+  
+\CommentTok{\# Change manually and send loop on its way}
+\NormalTok{  loc }\OtherTok{=} \StringTok{\textquotesingle{}CGREC\textquotesingle{}}
+\NormalTok{  loc }\OtherTok{=} \StringTok{\textquotesingle{}HREC\textquotesingle{}}
+\NormalTok{  loc }\OtherTok{=} \StringTok{\textquotesingle{}Dayton\textquotesingle{}}
+
+\NormalTok{  begin }\OtherTok{=} \FunctionTok{Sys.time}\NormalTok{()}
+\NormalTok{  rx\_d }\OtherTok{\textless{}{-}} \FunctionTok{filter}\NormalTok{(rx\_dates, location }\SpecialCharTok{==}\NormalTok{ loc)}
+\NormalTok{  lc }\OtherTok{=} \FunctionTok{tolower}\NormalTok{(loc)}
+\NormalTok{  loc\_sf }\OtherTok{\textless{}{-}} \FunctionTok{st\_read}\NormalTok{(}\StringTok{\textquotesingle{}./data/OriginalRxBurnPerims.gpkg\textquotesingle{}}\NormalTok{, lc, }\AttributeTok{quiet =} \ConstantTok{TRUE}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+            \FunctionTok{st\_transform}\NormalTok{(}\DecValTok{4326}\NormalTok{) }
+\NormalTok{  tc\_zones }\OtherTok{\textless{}{-}} \FunctionTok{filter}\NormalTok{(rx\_sf, location }\SpecialCharTok{==}\NormalTok{ loc) }\SpecialCharTok{\%\textgreater{}\%}
+              \FunctionTok{mutate}\NormalTok{(}\AttributeTok{area =} \FunctionTok{st\_area}\NormalTok{(.) ) }\SpecialCharTok{\%\textgreater{}\%} 
+              \FunctionTok{group\_by}\NormalTok{(burn) }\SpecialCharTok{\%\textgreater{}\%}
+              \FunctionTok{summarise}\NormalTok{(}\AttributeTok{area =} \FunctionTok{sum}\NormalTok{(area))  }\SpecialCharTok{\%\textgreater{}\%}
+              \FunctionTok{st\_centroid}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
+              \FunctionTok{st\_buffer}\NormalTok{(}\DecValTok{100}\NormalTok{) }
+
+\NormalTok{  dNBR }\OtherTok{\textless{}{-}} \FunctionTok{list}\NormalTok{() }
+    \ControlFlowTok{for}\NormalTok{(i }\ControlFlowTok{in} \DecValTok{1}\SpecialCharTok{:}\FunctionTok{length}\NormalTok{(rx\_d}\SpecialCharTok{$}\NormalTok{BurnDate)) \{}
+\NormalTok{      date }\OtherTok{=} \FunctionTok{slice}\NormalTok{(rx\_d, i)}
+
+    \CommentTok{\#}
+    \CommentTok{\# Step 1: Create cloud \& shadow mask from Scene Classification Layers}
+    \CommentTok{\#}
+    \CommentTok{\# Load, wrangle SCL as output by Copernicus GUI}
+      \CommentTok{\# Pre{-}fire SCL }
+\NormalTok{        pre\_scl }\OtherTok{=} \FunctionTok{filter}\NormalTok{(rx\_images, location }\SpecialCharTok{==}\NormalTok{ loc, }
+\NormalTok{                                    type }\SpecialCharTok{==} \StringTok{\textquotesingle{}SCL\textquotesingle{}}\NormalTok{, }
+\NormalTok{                                    ImageDate }\SpecialCharTok{==}\NormalTok{ date}\SpecialCharTok{$}\NormalTok{PreBurn)}\SpecialCharTok{$}\NormalTok{file}
+\NormalTok{        PreSCL }\OtherTok{\textless{}{-}} \FunctionTok{paste0}\NormalTok{(rx\_dir, }\StringTok{\textquotesingle{}/\textquotesingle{}}\NormalTok{, pre\_scl) }\SpecialCharTok{\%\textgreater{}\%} 
+                      \FunctionTok{rast}\NormalTok{() }
+        \FunctionTok{names}\NormalTok{(PreSCL) }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}r\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}g\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}b\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}dm\textquotesingle{}}\NormalTok{)}
+\NormalTok{        PreSCL }\SpecialCharTok{\%\textless{}\textgreater{}\%}
+          \FunctionTok{mutate}\NormalTok{(}\AttributeTok{sc =} \FunctionTok{case\_when}\NormalTok{(}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ b  }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\textasciitilde{}} \DecValTok{0}\NormalTok{, }
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ b}\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\textasciitilde{}} \DecValTok{1}\NormalTok{, }
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{47} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{47} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{47} \SpecialCharTok{\textasciitilde{}} \DecValTok{2}\NormalTok{,}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{100} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{50} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\textasciitilde{}} \DecValTok{3}\NormalTok{,}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{161} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\textasciitilde{}} \DecValTok{4}\NormalTok{,        }\CommentTok{\# 160 {-}\textgreater{} 161}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{231} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{90} \SpecialCharTok{\textasciitilde{}} \DecValTok{5}\NormalTok{,     }\CommentTok{\# 230 {-}\textgreater{} 231}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\textasciitilde{}} \DecValTok{6}\NormalTok{, }
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{129} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{129} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{129} \SpecialCharTok{\textasciitilde{}} \DecValTok{7}\NormalTok{,   }\CommentTok{\#  128 {-}\textgreater{} 129}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{193} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{193} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{193} \SpecialCharTok{\textasciitilde{}} \DecValTok{8}\NormalTok{,   }\CommentTok{\#  192 {-}\textgreater{} 193}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\textasciitilde{}} \DecValTok{9}\NormalTok{, }
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{100} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{201} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\textasciitilde{}} \DecValTok{10}\NormalTok{,  }\CommentTok{\# g 200 {-}\textgreater{} 201}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{150} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\textasciitilde{}} \DecValTok{11}\NormalTok{, }
+            \ConstantTok{TRUE} \SpecialCharTok{\textasciitilde{}} \DecValTok{99}\NormalTok{ ), }
+            \AttributeTok{sc =} \FunctionTok{as.ordered}\NormalTok{(sc)) }\SpecialCharTok{\%\textgreater{}\%}
+          \FunctionTok{select}\NormalTok{(sc)}
+      \CommentTok{\# Post fire SCL}
+\NormalTok{        post\_scl }\OtherTok{=} \FunctionTok{filter}\NormalTok{(rx\_images, location }\SpecialCharTok{==}\NormalTok{ loc, }
+\NormalTok{                          type }\SpecialCharTok{==} \StringTok{\textquotesingle{}SCL\textquotesingle{}}\NormalTok{, }
+\NormalTok{                          ImageDate }\SpecialCharTok{==}\NormalTok{ date}\SpecialCharTok{$}\NormalTok{PostBurn)}\SpecialCharTok{$}\NormalTok{file}
+\NormalTok{        PostSCL }\OtherTok{\textless{}{-}} \FunctionTok{paste0}\NormalTok{(rx\_dir, }\StringTok{\textquotesingle{}/\textquotesingle{}}\NormalTok{, post\_scl) }\SpecialCharTok{\%\textgreater{}\%} 
+                    \FunctionTok{rast}\NormalTok{() }
+        \FunctionTok{names}\NormalTok{(PostSCL) }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}r\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}g\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}b\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}dm\textquotesingle{}}\NormalTok{)}
+\NormalTok{        PostSCL }\SpecialCharTok{\%\textless{}\textgreater{}\%}
+          \FunctionTok{mutate}\NormalTok{(}\AttributeTok{sc =} \FunctionTok{case\_when}\NormalTok{(}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ b  }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\textasciitilde{}} \DecValTok{0}\NormalTok{, }
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ b}\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\textasciitilde{}} \DecValTok{1}\NormalTok{, }
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{47} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{47} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{47} \SpecialCharTok{\textasciitilde{}} \DecValTok{2}\NormalTok{,}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{100} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{50} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\textasciitilde{}} \DecValTok{3}\NormalTok{,}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{161} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\textasciitilde{}} \DecValTok{4}\NormalTok{,        }\CommentTok{\# g 160 {-}\textgreater{} 161}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{231} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{90} \SpecialCharTok{\textasciitilde{}} \DecValTok{5}\NormalTok{,     }\CommentTok{\# g 230 {-}\textgreater{} 231}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\textasciitilde{}} \DecValTok{6}\NormalTok{, }
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{129} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{129} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{129} \SpecialCharTok{\textasciitilde{}} \DecValTok{7}\NormalTok{,   }\CommentTok{\#  128 {-}\textgreater{} 129}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{193} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{193} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{193} \SpecialCharTok{\textasciitilde{}} \DecValTok{8}\NormalTok{,   }\CommentTok{\#  192 {-}\textgreater{} 193}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\textasciitilde{}} \DecValTok{9}\NormalTok{, }
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{100} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{201} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\textasciitilde{}} \DecValTok{10}\NormalTok{,  }\CommentTok{\# g 200 {-}\textgreater{} 201}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{150} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\textasciitilde{}} \DecValTok{11}\NormalTok{, }
+            \ConstantTok{TRUE} \SpecialCharTok{\textasciitilde{}} \DecValTok{99}\NormalTok{ ), }
+            \AttributeTok{sc =} \FunctionTok{as.ordered}\NormalTok{(sc)) }\SpecialCharTok{\%\textgreater{}\%}
+          \FunctionTok{select}\NormalTok{(sc)}
+        \CommentTok{\# Define classifications to exclude}
+\NormalTok{          ex\_sc }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{, }\DecValTok{2}\NormalTok{, }\DecValTok{3}\NormalTok{, }\DecValTok{7}\SpecialCharTok{:}\DecValTok{11}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{as.ordered}\NormalTok{() }
+        \CommentTok{\# Get the excluded classifications for each image}
+\NormalTok{          pre\_mask }\OtherTok{\textless{}{-}} 
+\NormalTok{            PreSCL }\SpecialCharTok{\%\textgreater{}\%}
+            \FunctionTok{mutate}\NormalTok{(}\AttributeTok{sc =} \FunctionTok{ifelse}\NormalTok{(sc }\SpecialCharTok{\%in\%}\NormalTok{ ex\_sc, }\DecValTok{1}\NormalTok{, }\DecValTok{0}\NormalTok{)) }
+\NormalTok{          post\_mask }\OtherTok{\textless{}{-}} 
+\NormalTok{            PostSCL }\SpecialCharTok{\%\textgreater{}\%}
+            \FunctionTok{mutate}\NormalTok{(}\AttributeTok{sc =} \FunctionTok{ifelse}\NormalTok{(sc }\SpecialCharTok{\%in\%}\NormalTok{ ex\_sc, }\DecValTok{1}\NormalTok{, }\DecValTok{0}\NormalTok{)) }
+          
+        \CommentTok{\# Combine pre and post masks}
+\NormalTok{          CombinedMask }\OtherTok{\textless{}{-}}\NormalTok{ pre\_mask }\SpecialCharTok{+}\NormalTok{ post\_mask }
+        \CommentTok{\# Add back in TC sample areas in case they got excluded}
+\NormalTok{          CombinedMask }\SpecialCharTok{\%\textless{}\textgreater{}\%}  \FunctionTok{mutate}\NormalTok{(}\AttributeTok{sc =} \FunctionTok{ifelse}\NormalTok{(sc }\SpecialCharTok{\textgreater{}=} \DecValTok{1}\NormalTok{, }\DecValTok{1}\NormalTok{, }\DecValTok{0}\NormalTok{))}
+          
+\NormalTok{          tc\_pixels }\OtherTok{\textless{}{-}}\NormalTok{ tc\_zones }\SpecialCharTok{\%\textgreater{}\%} 
+                    \FunctionTok{rasterize}\NormalTok{(CombinedMask, }\AttributeTok{background =} \DecValTok{0}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+                    \FunctionTok{mutate}\NormalTok{(}\AttributeTok{layer =} \FunctionTok{ifelse}\NormalTok{(layer }\SpecialCharTok{==} \DecValTok{1}\NormalTok{, }\SpecialCharTok{{-}}\DecValTok{1}\NormalTok{, }\DecValTok{0}\NormalTok{)) }
+\NormalTok{          CombinedMask2 }\OtherTok{\textless{}{-}}\NormalTok{ CombinedMask }\SpecialCharTok{+}\NormalTok{ tc\_pixels}
+\NormalTok{          CombinedMask2 }\SpecialCharTok{\%\textless{}\textgreater{}\%} \FunctionTok{mutate}\NormalTok{(}\AttributeTok{sc =} \FunctionTok{ifelse}\NormalTok{(sc }\SpecialCharTok{\textless{}=} \DecValTok{0}\NormalTok{, }\DecValTok{0}\NormalTok{, }\DecValTok{1}\NormalTok{),}
+                                    \AttributeTok{sc =} \FunctionTok{ifelse}\NormalTok{(sc }\SpecialCharTok{\textgreater{}=} \DecValTok{1}\NormalTok{, }\ConstantTok{NA}\NormalTok{, }\DecValTok{1}\NormalTok{))}
+    \CommentTok{\#}
+    \CommentTok{\# Step 2: PIF correction on post{-}fire image}
+    \CommentTok{\#}
+      \DocumentationTok{\#\# Load raw bands}
+        \CommentTok{\# pre image}
+\NormalTok{          pre\_raw }\OtherTok{=} \FunctionTok{filter}\NormalTok{(rx\_images, location }\SpecialCharTok{==}\NormalTok{ loc, }
+\NormalTok{                           type }\SpecialCharTok{==} \StringTok{\textquotesingle{}RAW\textquotesingle{}}\NormalTok{, }
+\NormalTok{                           ImageDate }\SpecialCharTok{==}\NormalTok{ date}\SpecialCharTok{$}\NormalTok{PreBurn)}\SpecialCharTok{$}\NormalTok{file}
+\NormalTok{          pre\_path }\OtherTok{=} \FunctionTok{paste0}\NormalTok{(rx\_dir, }\StringTok{\textquotesingle{}/\textquotesingle{}}\NormalTok{, pre\_raw)}
+\NormalTok{          pre\_ras }\OtherTok{\textless{}{-}} \FunctionTok{rast}\NormalTok{(pre\_path) }\SpecialCharTok{\%\textgreater{}\%} 
+                        \FunctionTok{mask}\NormalTok{(., CombinedMask2)}
+\NormalTok{          pre\_ras }\OtherTok{\textless{}{-}}\NormalTok{  (pre\_ras}\DecValTok{{-}10000}\NormalTok{)}\SpecialCharTok{/}\DecValTok{10000}
+          \FunctionTok{names}\NormalTok{(pre\_ras) }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}green\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}red\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}nir\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}swir\textquotesingle{}}\NormalTok{)}
+        \CommentTok{\# post{-}fire}
+\NormalTok{          post\_raw }\OtherTok{=} \FunctionTok{filter}\NormalTok{(rx\_images, location }\SpecialCharTok{==}\NormalTok{ loc, }
+\NormalTok{                            type }\SpecialCharTok{==} \StringTok{\textquotesingle{}RAW\textquotesingle{}}\NormalTok{, }
+\NormalTok{                            ImageDate }\SpecialCharTok{==}\NormalTok{ date}\SpecialCharTok{$}\NormalTok{PostBurn)}\SpecialCharTok{$}\NormalTok{file}
+\NormalTok{          post\_path }\OtherTok{=} \FunctionTok{paste0}\NormalTok{(rx\_dir, }\StringTok{\textquotesingle{}/\textquotesingle{}}\NormalTok{, post\_raw)}
+\NormalTok{          post\_ras }\OtherTok{\textless{}{-}} \FunctionTok{rast}\NormalTok{(post\_path) }\SpecialCharTok{\%\textgreater{}\%} 
+                        \FunctionTok{mask}\NormalTok{(., CombinedMask2)}
+\NormalTok{          post\_ras }\OtherTok{=}\NormalTok{ (post\_ras}\DecValTok{{-}10000}\NormalTok{)}\SpecialCharTok{/}\DecValTok{10000}
+          \FunctionTok{names}\NormalTok{(post\_ras) }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}green\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}red\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}nir\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}swir\textquotesingle{}}\NormalTok{)}
+      \CommentTok{\# PIF correction }
+        \CommentTok{\# Calculate the absolute difference for PIF{-}sensitive bands}
+\NormalTok{          diff\_img }\OtherTok{\textless{}{-}} \FunctionTok{abs}\NormalTok{(pre\_ras[[}\FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}green\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}red\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}swir\textquotesingle{}}\NormalTok{)]] }\SpecialCharTok{{-}} 
+\NormalTok{                            post\_ras[[}\FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}green\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}red\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}swir\textquotesingle{}}\NormalTok{)]])}
+        \CommentTok{\# Sum the differences across bands to get a "change magnitude" map}
+\NormalTok{          mag }\OtherTok{\textless{}{-}} \FunctionTok{sum}\NormalTok{(diff\_img)}
+        \CommentTok{\# Define a threshold for "No Change" (e.g., the bottom 1\% of pixels) }
+\NormalTok{          thresh }\OtherTok{\textless{}{-}} \FunctionTok{quantile}\NormalTok{(}\FunctionTok{values}\NormalTok{(mag, }\AttributeTok{na.rm=}\ConstantTok{TRUE}\NormalTok{), }\AttributeTok{probs =} \FloatTok{0.01}\NormalTok{)}
+        \CommentTok{\# Create PIF mask}
+\NormalTok{          pif\_mask }\OtherTok{=} \FunctionTok{ifel}\NormalTok{(mag }\SpecialCharTok{\textgreater{}=}\NormalTok{ thresh, }\ConstantTok{NA}\NormalTok{, mag)}
+        \CommentTok{\# Ensure there are enough relatively{-}invariant pixels to do regression}
+\NormalTok{          pif\_pix }\OtherTok{\textless{}{-}} \FunctionTok{values}\NormalTok{(pif\_mask}\SpecialCharTok{$}\NormalTok{sum, }\AttributeTok{na.rm=}\ConstantTok{TRUE}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{length}\NormalTok{()  }
+          \ControlFlowTok{if}\NormalTok{(pif\_pix }\SpecialCharTok{\textless{}} \DecValTok{100}\NormalTok{) \{ }
+\NormalTok{            thresh }\OtherTok{\textless{}{-}} \FunctionTok{quantile}\NormalTok{(}\FunctionTok{values}\NormalTok{(mag, }\AttributeTok{na.rm=}\ConstantTok{TRUE}\NormalTok{), }\AttributeTok{probs =} \FloatTok{0.1}\NormalTok{)}
+\NormalTok{            pif\_mask }\OtherTok{=} \FunctionTok{ifel}\NormalTok{(mag }\SpecialCharTok{\textgreater{}=}\NormalTok{ thresh, }\ConstantTok{NA}\NormalTok{, mag)}
+\NormalTok{            pif\_pix }\OtherTok{\textless{}{-}} \FunctionTok{values}\NormalTok{(pif\_mask}\SpecialCharTok{$}\NormalTok{sum, }\AttributeTok{na.rm=}\ConstantTok{TRUE}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{length}\NormalTok{() }
+\NormalTok{          \}}
+        \CommentTok{\# Apply mask to images}
+\NormalTok{          ref\_pifs }\OtherTok{\textless{}{-}} \FunctionTok{mask}\NormalTok{(pre\_ras, pif\_mask)   }\CommentTok{\# Pre{-}burn reference image}
+\NormalTok{          subj\_pifs }\OtherTok{\textless{}{-}} \FunctionTok{mask}\NormalTok{(post\_ras, pif\_mask) }\CommentTok{\# subject image to correct}
+    \DocumentationTok{\#\# A PIF correction loop combining Jay\textquotesingle{}s script and\textasciigrave{}landsat::PIF\textasciigrave{} example}
+      \CommentTok{\# stash list}
+\NormalTok{        corr\_bands }\OtherTok{\textless{}{-}} \FunctionTok{list}\NormalTok{()}
+      \CommentTok{\# loop through layers to get PIF pixels}
+        \ControlFlowTok{for}\NormalTok{(l }\ControlFlowTok{in} \DecValTok{1}\SpecialCharTok{:}\FunctionTok{nlyr}\NormalTok{(pre\_ras)) \{}
+          \CommentTok{\# Get PIF values for the current band}
+\NormalTok{            vals }\OtherTok{\textless{}{-}} \FunctionTok{tibble}\NormalTok{(}
+                      \AttributeTok{ref\_val =} \FunctionTok{values}\NormalTok{(ref\_pifs[[l]], }\AttributeTok{na.rm=}\ConstantTok{TRUE}\NormalTok{),}
+                      \AttributeTok{subj\_val =} \FunctionTok{values}\NormalTok{(subj\_pifs[[l]], }\AttributeTok{na.rm=}\ConstantTok{TRUE}\NormalTok{) }
+\NormalTok{                      )}
+          \CommentTok{\# Fit the linear model}
+\NormalTok{            post.corr }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(vals[[}\DecValTok{1}\NormalTok{]] }\SpecialCharTok{\textasciitilde{}}\NormalTok{ vals[[}\DecValTok{2}\NormalTok{]])}\SpecialCharTok{$}\NormalTok{coefficients}
+\NormalTok{            m }\OtherTok{=}\NormalTok{ post.corr[[}\DecValTok{2}\NormalTok{]]}
+\NormalTok{            b }\OtherTok{=}\NormalTok{ post.corr[[}\DecValTok{1}\NormalTok{]]}
     
-\NormalTok{    wf\_dir }\OtherTok{=} \StringTok{\textquotesingle{}Folder/With/Sentinel/Imagery\textquotesingle{}}
+          \CommentTok{\# Apply correction to the entire subject band}
+\NormalTok{            corr\_bands[[l]] }\OtherTok{\textless{}{-}}\NormalTok{ (m }\SpecialCharTok{*}\NormalTok{ post\_ras[[l]]) }\SpecialCharTok{+}\NormalTok{ b}
+\NormalTok{        \}}
+      
+      \CommentTok{\# Merge corrected bands back into a single SpatRaster \& crop to pastures}
+\NormalTok{        corr\_rast }\OtherTok{\textless{}{-}} \FunctionTok{rast}\NormalTok{(corr\_bands ) }\SpecialCharTok{\%\textgreater{}\%}
+                        \FunctionTok{crop}\NormalTok{(loc\_sf )}
+      \CommentTok{\# crop the pre{-}burn image to pastures as well}
+\NormalTok{        pre\_burn }\OtherTok{\textless{}{-}}\NormalTok{ pre\_ras }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{crop}\NormalTok{(loc\_sf)}
+        \CommentTok{\# post\_burn \textless{}{-} post\_ras \%\textgreater{}\% crop(loc\_sf)   \# raw}
+    \CommentTok{\#}
+    \CommentTok{\# Step 3: Calculate dNBR from pre{-} and corrected post imagery}
+    \CommentTok{\#}
+      \CommentTok{\# create NBR rasters for pre and corrected post}
+\NormalTok{        nbr\_pre }\OtherTok{\textless{}{-}} \FunctionTok{calc\_nbr}\NormalTok{(pre\_burn}\SpecialCharTok{$}\NormalTok{nir, pre\_burn}\SpecialCharTok{$}\NormalTok{swir )  }
+\NormalTok{        nbr\_post }\OtherTok{\textless{}{-}} \FunctionTok{calc\_nbr}\NormalTok{(corr\_rast}\SpecialCharTok{$}\NormalTok{nir, corr\_rast}\SpecialCharTok{$}\NormalTok{swir) }\CommentTok{\# post{-}fire, corrected}
+        \CommentTok{\# nbr\_post\_raw \textless{}{-} calc\_nbr(post\_burn$nir, post\_burn$swir) \# post{-}fire, raw}
+        
+      \CommentTok{\# Calculate dNBR}
+\NormalTok{        dnbr }\OtherTok{\textless{}{-}}\NormalTok{ (nbr\_pre }\SpecialCharTok{{-}}\NormalTok{ nbr\_post) }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{rename}\NormalTok{(}\AttributeTok{dNBR =}\NormalTok{ nir)}
+        \FunctionTok{names}\NormalTok{(dnbr) }\OtherTok{\textless{}{-}}\NormalTok{ date}\SpecialCharTok{$}\NormalTok{BurnDate}
+\NormalTok{        dNBR[[i]] }\OtherTok{\textless{}{-}}\NormalTok{ dnbr}
+\NormalTok{  \}}
+        \FunctionTok{rast}\NormalTok{(dNBR ) }\SpecialCharTok{\%\textgreater{}\%}
+          \FunctionTok{writeRaster}\NormalTok{(}\FunctionTok{paste0}\NormalTok{(}\StringTok{\textquotesingle{}./data/RxRasters/TC/\textquotesingle{}}\NormalTok{, loc, }\StringTok{\textquotesingle{}.tiff\textquotesingle{}}\NormalTok{), }\AttributeTok{overwrite=}\ConstantTok{TRUE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\paragraph{Entire pastures}\label{entire-pastures}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Load Rx fire data}
+\NormalTok{  rx\_perims }\OtherTok{\textless{}{-}} \FunctionTok{read\_sf}\NormalTok{(}\StringTok{\textquotesingle{}./paper/SpatialData.gpkg\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}RxBurnPerimeters\textquotesingle{}}\NormalTok{)}
+
+\CommentTok{\# Identify unique post{-}burn dates to calculate severity for }
+\NormalTok{  rx\_perims }\SpecialCharTok{\%\textless{}\textgreater{}\%}
+    \FunctionTok{select}\NormalTok{(location, burn, PostBurn, PreBurn) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{mutate}\NormalTok{(}\AttributeTok{location =} \FunctionTok{case\_when}\NormalTok{(}
+\NormalTok{                        location }\SpecialCharTok{\%in\%} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}Fitch\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}Clement\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\textasciitilde{}} \StringTok{\textquotesingle{}HREC\textquotesingle{}}\NormalTok{, }
+                        \ConstantTok{TRUE} \SpecialCharTok{\textasciitilde{}}\NormalTok{ location}
+\NormalTok{                      )) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{arrange}\NormalTok{(location, PostBurn) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{mutate}\NormalTok{(}\AttributeTok{DeltaPair =} \FunctionTok{paste0}\NormalTok{(PostBurn, }\StringTok{\textquotesingle{}\_\textquotesingle{}}\NormalTok{, PreBurn)) }
+  
+\NormalTok{  DeltaPairs }\OtherTok{\textless{}{-}} 
+\NormalTok{    rx\_perims }\SpecialCharTok{\%\textgreater{}\%}
+        \FunctionTok{as\_tibble}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{group\_by}\NormalTok{(location) }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{distinct}\NormalTok{(DeltaPair) }\SpecialCharTok{\%\textgreater{}\%}
+        \FunctionTok{ungroup}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{separate}\NormalTok{(DeltaPair, }\AttributeTok{into =} \FunctionTok{c}\NormalTok{(}\StringTok{"PostBurn"}\NormalTok{, }\StringTok{"PreBurn"}\NormalTok{), }\AttributeTok{sep =} \StringTok{\textquotesingle{}\_\textquotesingle{}}\NormalTok{, }\AttributeTok{remove =}\NormalTok{ F )}
+
+\NormalTok{  rx\_images }\OtherTok{\textless{}{-}} 
+    \FunctionTok{tibble}\NormalTok{(}\AttributeTok{file =} \FunctionTok{list.files}\NormalTok{(rx\_dir, }\AttributeTok{pattern =} \StringTok{"}\SpecialCharTok{\textbackslash{}\textbackslash{}}\StringTok{.tiff$"}\NormalTok{, }\AttributeTok{ignore.case =} \ConstantTok{TRUE}\NormalTok{) ) }\SpecialCharTok{\%\textgreater{}\%} 
+    \FunctionTok{mutate}\NormalTok{(}\AttributeTok{info =} \FunctionTok{str\_remove}\NormalTok{(file, }\StringTok{\textquotesingle{}.tiff\textquotesingle{}}\NormalTok{)) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{separate}\NormalTok{(info, }\AttributeTok{into =} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}location\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}ImageDate\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}type\textquotesingle{}}\NormalTok{), }\AttributeTok{sep =} \StringTok{\textquotesingle{}\_\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{mutate}\NormalTok{(}\AttributeTok{location =} \FunctionTok{replace\_values}\NormalTok{(location, }\StringTok{\textquotesingle{}DAY\textquotesingle{}} \SpecialCharTok{\textasciitilde{}} \StringTok{\textquotesingle{}Dayton\textquotesingle{}}\NormalTok{)) }
+\DocumentationTok{\#\#}
+\DocumentationTok{\#\# Location{-}specific corrected dNBR rasters}
+\DocumentationTok{\#\#}
+  \ControlFlowTok{for}\NormalTok{(i }\ControlFlowTok{in} \DecValTok{1}\SpecialCharTok{:}\FunctionTok{length}\NormalTok{(}\FunctionTok{unique}\NormalTok{(DeltaPairs}\SpecialCharTok{$}\NormalTok{location))) \{}
+\NormalTok{    loc }\OtherTok{=} \FunctionTok{unique}\NormalTok{(DeltaPairs}\SpecialCharTok{$}\NormalTok{location)[i]}
+\NormalTok{    dp\_d }\OtherTok{\textless{}{-}} \FunctionTok{filter}\NormalTok{(DeltaPairs, location }\SpecialCharTok{==}\NormalTok{ loc)}
+\NormalTok{    loc\_sf }\OtherTok{\textless{}{-}}\NormalTok{ rx\_perims }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{filter}\NormalTok{(location }\SpecialCharTok{==}\NormalTok{ loc) }\CommentTok{\# for cropping dNBR raster}
+\NormalTok{    dNBR }\OtherTok{\textless{}{-}} \FunctionTok{list}\NormalTok{() }
+    \FunctionTok{cat}\NormalTok{(}\FunctionTok{paste}\NormalTok{(}\StringTok{\textquotesingle{}Starting\textquotesingle{}}\NormalTok{, loc, }\StringTok{\textquotesingle{}...\textquotesingle{}}\NormalTok{))}
+    \ControlFlowTok{for}\NormalTok{(j }\ControlFlowTok{in} \DecValTok{1}\SpecialCharTok{:}\FunctionTok{length}\NormalTok{(dp\_d}\SpecialCharTok{$}\NormalTok{DeltaPair)) \{}
+\NormalTok{      dp }\OtherTok{=} \FunctionTok{slice}\NormalTok{(dp\_d, j)}
+
+    \CommentTok{\#}
+    \CommentTok{\# Step 1: Create cloud \& shadow mask from Scene Classification Layers}
+    \CommentTok{\#}
+    \CommentTok{\# Load, wrangle SCL as output by Copernicus GUI}
+      \CommentTok{\# Pre{-}fire SCL }
+\NormalTok{        pre\_scl }\OtherTok{=} \FunctionTok{filter}\NormalTok{(rx\_images, location }\SpecialCharTok{==}\NormalTok{ dp}\SpecialCharTok{$}\NormalTok{location, }
+\NormalTok{                                    type }\SpecialCharTok{==} \StringTok{\textquotesingle{}SCL\textquotesingle{}}\NormalTok{, }
+\NormalTok{                                    ImageDate }\SpecialCharTok{==}\NormalTok{ dp}\SpecialCharTok{$}\NormalTok{PreBurn)}\SpecialCharTok{$}\NormalTok{file}
+\NormalTok{        PreSCL }\OtherTok{\textless{}{-}} \FunctionTok{paste0}\NormalTok{(rx\_dir, }\StringTok{\textquotesingle{}/\textquotesingle{}}\NormalTok{, pre\_scl) }\SpecialCharTok{\%\textgreater{}\%} 
+                      \FunctionTok{rast}\NormalTok{() }
+        \FunctionTok{names}\NormalTok{(PreSCL) }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}r\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}g\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}b\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}dm\textquotesingle{}}\NormalTok{)}
+\NormalTok{        PreSCL }\SpecialCharTok{\%\textless{}\textgreater{}\%}
+          \FunctionTok{mutate}\NormalTok{(}\AttributeTok{sc =} \FunctionTok{case\_when}\NormalTok{(}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ b  }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\textasciitilde{}} \DecValTok{0}\NormalTok{, }
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ b}\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\textasciitilde{}} \DecValTok{1}\NormalTok{, }
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{47} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{47} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{47} \SpecialCharTok{\textasciitilde{}} \DecValTok{2}\NormalTok{,}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{100} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{50} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\textasciitilde{}} \DecValTok{3}\NormalTok{,}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{161} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\textasciitilde{}} \DecValTok{4}\NormalTok{,        }\CommentTok{\# 160 {-}\textgreater{} 161}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{231} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{90} \SpecialCharTok{\textasciitilde{}} \DecValTok{5}\NormalTok{,     }\CommentTok{\# 230 {-}\textgreater{} 231}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\textasciitilde{}} \DecValTok{6}\NormalTok{, }
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{129} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{129} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{129} \SpecialCharTok{\textasciitilde{}} \DecValTok{7}\NormalTok{,   }\CommentTok{\#  128 {-}\textgreater{} 129}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{193} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{193} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{193} \SpecialCharTok{\textasciitilde{}} \DecValTok{8}\NormalTok{,   }\CommentTok{\#  192 {-}\textgreater{} 193}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\textasciitilde{}} \DecValTok{9}\NormalTok{, }
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{100} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{201} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\textasciitilde{}} \DecValTok{10}\NormalTok{,  }\CommentTok{\# g 200 {-}\textgreater{} 201}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{150} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\textasciitilde{}} \DecValTok{11}\NormalTok{, }
+            \ConstantTok{TRUE} \SpecialCharTok{\textasciitilde{}} \DecValTok{99}\NormalTok{ ), }
+            \AttributeTok{sc =} \FunctionTok{as.ordered}\NormalTok{(sc)) }\SpecialCharTok{\%\textgreater{}\%}
+          \FunctionTok{select}\NormalTok{(sc)}
+      \CommentTok{\# Post fire SCL}
+\NormalTok{        post\_scl }\OtherTok{=} \FunctionTok{filter}\NormalTok{(rx\_images, location }\SpecialCharTok{==}\NormalTok{ dp}\SpecialCharTok{$}\NormalTok{location, }
+\NormalTok{                          type }\SpecialCharTok{==} \StringTok{\textquotesingle{}SCL\textquotesingle{}}\NormalTok{, }
+\NormalTok{                          ImageDate }\SpecialCharTok{==}\NormalTok{ dp}\SpecialCharTok{$}\NormalTok{PostBurn)}\SpecialCharTok{$}\NormalTok{file}
+\NormalTok{        PostSCL }\OtherTok{\textless{}{-}} \FunctionTok{paste0}\NormalTok{(rx\_dir, }\StringTok{\textquotesingle{}/\textquotesingle{}}\NormalTok{, post\_scl) }\SpecialCharTok{\%\textgreater{}\%} 
+                    \FunctionTok{rast}\NormalTok{() }
+        \FunctionTok{names}\NormalTok{(PostSCL) }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}r\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}g\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}b\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}dm\textquotesingle{}}\NormalTok{)}
+\NormalTok{        PostSCL }\SpecialCharTok{\%\textless{}\textgreater{}\%}
+          \FunctionTok{mutate}\NormalTok{(}\AttributeTok{sc =} \FunctionTok{case\_when}\NormalTok{(}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ b  }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\textasciitilde{}} \DecValTok{0}\NormalTok{, }
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ b}\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\textasciitilde{}} \DecValTok{1}\NormalTok{, }
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{47} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{47} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{47} \SpecialCharTok{\textasciitilde{}} \DecValTok{2}\NormalTok{,}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{100} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{50} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\textasciitilde{}} \DecValTok{3}\NormalTok{,}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{161} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\textasciitilde{}} \DecValTok{4}\NormalTok{,        }\CommentTok{\# g 160 {-}\textgreater{} 161}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{231} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{90} \SpecialCharTok{\textasciitilde{}} \DecValTok{5}\NormalTok{,     }\CommentTok{\# g 230 {-}\textgreater{} 231}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\textasciitilde{}} \DecValTok{6}\NormalTok{, }
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{129} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{129} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{129} \SpecialCharTok{\textasciitilde{}} \DecValTok{7}\NormalTok{,   }\CommentTok{\#  128 {-}\textgreater{} 129}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{193} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{193} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{193} \SpecialCharTok{\textasciitilde{}} \DecValTok{8}\NormalTok{,   }\CommentTok{\#  192 {-}\textgreater{} 193}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\textasciitilde{}} \DecValTok{9}\NormalTok{, }
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{100} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{201} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\textasciitilde{}} \DecValTok{10}\NormalTok{,  }\CommentTok{\# g 200 {-}\textgreater{} 201}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{150} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\textasciitilde{}} \DecValTok{11}\NormalTok{, }
+            \ConstantTok{TRUE} \SpecialCharTok{\textasciitilde{}} \DecValTok{99}\NormalTok{ ), }
+            \AttributeTok{sc =} \FunctionTok{as.ordered}\NormalTok{(sc)) }\SpecialCharTok{\%\textgreater{}\%}
+          \FunctionTok{select}\NormalTok{(sc)}
+        \CommentTok{\# Define classifications to exclude}
+\NormalTok{          ex\_sc }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{, }\DecValTok{2}\NormalTok{, }\DecValTok{3}\NormalTok{, }\DecValTok{7}\SpecialCharTok{:}\DecValTok{11}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{as.ordered}\NormalTok{() }
+        \CommentTok{\# Get the excluded classifications for each image}
+\NormalTok{          pre\_mask }\OtherTok{\textless{}{-}} 
+\NormalTok{            PreSCL }\SpecialCharTok{\%\textgreater{}\%}
+            \FunctionTok{mutate}\NormalTok{(}\AttributeTok{sc =} \FunctionTok{ifelse}\NormalTok{(sc }\SpecialCharTok{\%in\%}\NormalTok{ ex\_sc, }\DecValTok{1}\NormalTok{, }\DecValTok{0}\NormalTok{)) }
+\NormalTok{          post\_mask }\OtherTok{\textless{}{-}} 
+\NormalTok{            PostSCL }\SpecialCharTok{\%\textgreater{}\%}
+            \FunctionTok{mutate}\NormalTok{(}\AttributeTok{sc =} \FunctionTok{ifelse}\NormalTok{(sc }\SpecialCharTok{\%in\%}\NormalTok{ ex\_sc, }\DecValTok{1}\NormalTok{, }\DecValTok{0}\NormalTok{)) }
+        \CommentTok{\# Combine pre and post masks}
+\NormalTok{          CombinedMask }\OtherTok{\textless{}{-}}\NormalTok{ pre\_mask }\SpecialCharTok{+}\NormalTok{ post\_mask }
+\NormalTok{          CombinedMask }\SpecialCharTok{\%\textless{}\textgreater{}\%} \FunctionTok{mutate}\NormalTok{(}\AttributeTok{sc =} \FunctionTok{ifelse}\NormalTok{(sc }\SpecialCharTok{\textgreater{}=} \DecValTok{1}\NormalTok{, }\ConstantTok{NA}\NormalTok{, }\DecValTok{1}\NormalTok{))}
+    \CommentTok{\#}
+    \CommentTok{\# Step 2: PIF correction on post{-}fire image}
+    \CommentTok{\#}
+      \DocumentationTok{\#\# Load raw bands}
+        \CommentTok{\# pre image}
+\NormalTok{          pre\_raw }\OtherTok{=} \FunctionTok{filter}\NormalTok{(rx\_images, location }\SpecialCharTok{==}\NormalTok{ dp}\SpecialCharTok{$}\NormalTok{location, }
+\NormalTok{                           type }\SpecialCharTok{==} \StringTok{\textquotesingle{}RAW\textquotesingle{}}\NormalTok{, }
+\NormalTok{                           ImageDate }\SpecialCharTok{==}\NormalTok{ dp}\SpecialCharTok{$}\NormalTok{PreBurn)}\SpecialCharTok{$}\NormalTok{file}
+\NormalTok{          pre\_path }\OtherTok{=} \FunctionTok{paste0}\NormalTok{(rx\_dir, }\StringTok{\textquotesingle{}/\textquotesingle{}}\NormalTok{, pre\_raw)}
+\NormalTok{          pre\_ras }\OtherTok{\textless{}{-}} \FunctionTok{rast}\NormalTok{(pre\_path) }\SpecialCharTok{\%\textgreater{}\%} 
+                        \FunctionTok{mask}\NormalTok{(., CombinedMask)}
+\NormalTok{          pre\_ras }\OtherTok{\textless{}{-}}\NormalTok{  (pre\_ras}\DecValTok{{-}10000}\NormalTok{)}\SpecialCharTok{/}\DecValTok{10000}
+          \FunctionTok{names}\NormalTok{(pre\_ras) }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}green\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}red\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}nir\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}swir\textquotesingle{}}\NormalTok{)}
+        \CommentTok{\# post{-}fire}
+\NormalTok{          post\_raw }\OtherTok{=} \FunctionTok{filter}\NormalTok{(rx\_images, location }\SpecialCharTok{==}\NormalTok{ dp}\SpecialCharTok{$}\NormalTok{location, }
+\NormalTok{                            type }\SpecialCharTok{==} \StringTok{\textquotesingle{}RAW\textquotesingle{}}\NormalTok{, }
+\NormalTok{                            ImageDate }\SpecialCharTok{==}\NormalTok{ dp}\SpecialCharTok{$}\NormalTok{PostBurn)}\SpecialCharTok{$}\NormalTok{file}
+\NormalTok{          post\_path }\OtherTok{=} \FunctionTok{paste0}\NormalTok{(rx\_dir, }\StringTok{\textquotesingle{}/\textquotesingle{}}\NormalTok{, post\_raw)}
+\NormalTok{          post\_ras }\OtherTok{\textless{}{-}} \FunctionTok{rast}\NormalTok{(post\_path) }\SpecialCharTok{\%\textgreater{}\%} 
+                        \FunctionTok{mask}\NormalTok{(., CombinedMask)}
+\NormalTok{          post\_ras }\OtherTok{=}\NormalTok{ (post\_ras}\DecValTok{{-}10000}\NormalTok{)}\SpecialCharTok{/}\DecValTok{10000}
+          \FunctionTok{names}\NormalTok{(post\_ras) }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}green\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}red\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}nir\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}swir\textquotesingle{}}\NormalTok{)}
+      \CommentTok{\# PIF correction }
+        \CommentTok{\# Calculate the absolute difference for PIF{-}sensitive bands}
+\NormalTok{          diff\_img }\OtherTok{\textless{}{-}} \FunctionTok{abs}\NormalTok{(pre\_ras[[}\FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}green\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}red\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}swir\textquotesingle{}}\NormalTok{)]] }\SpecialCharTok{{-}} 
+\NormalTok{                            post\_ras[[}\FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}green\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}red\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}swir\textquotesingle{}}\NormalTok{)]])}
+        \CommentTok{\# Sum the differences across bands to get a "change magnitude" map}
+\NormalTok{          mag }\OtherTok{\textless{}{-}} \FunctionTok{sum}\NormalTok{(diff\_img)}
+        \CommentTok{\# Define a threshold for "No Change" (e.g., the bottom 1\% of pixels) }
+\NormalTok{          thresh }\OtherTok{\textless{}{-}} \FunctionTok{quantile}\NormalTok{(}\FunctionTok{values}\NormalTok{(mag, }\AttributeTok{na.rm=}\ConstantTok{TRUE}\NormalTok{), }\AttributeTok{probs =} \FloatTok{0.01}\NormalTok{)}
+        \CommentTok{\# Create PIF mask}
+\NormalTok{          pif\_mask }\OtherTok{=} \FunctionTok{ifel}\NormalTok{(mag }\SpecialCharTok{\textgreater{}=}\NormalTok{ thresh, }\ConstantTok{NA}\NormalTok{, mag)}
+        \CommentTok{\# Ensure there are enough relatively{-}invariant pixels to do regression}
+\NormalTok{          pif\_pix }\OtherTok{\textless{}{-}} \FunctionTok{values}\NormalTok{(pif\_mask}\SpecialCharTok{$}\NormalTok{sum, }\AttributeTok{na.rm=}\ConstantTok{TRUE}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{length}\NormalTok{()  }
+          \ControlFlowTok{if}\NormalTok{(pif\_pix }\SpecialCharTok{\textless{}} \DecValTok{100}\NormalTok{) \{ }
+\NormalTok{            thresh }\OtherTok{\textless{}{-}} \FunctionTok{quantile}\NormalTok{(}\FunctionTok{values}\NormalTok{(mag, }\AttributeTok{na.rm=}\ConstantTok{TRUE}\NormalTok{), }\AttributeTok{probs =} \FloatTok{0.1}\NormalTok{)}
+\NormalTok{            pif\_mask }\OtherTok{=} \FunctionTok{ifel}\NormalTok{(mag }\SpecialCharTok{\textgreater{}=}\NormalTok{ thresh, }\ConstantTok{NA}\NormalTok{, mag)}
+\NormalTok{            pif\_pix }\OtherTok{\textless{}{-}} \FunctionTok{values}\NormalTok{(pif\_mask}\SpecialCharTok{$}\NormalTok{sum, }\AttributeTok{na.rm=}\ConstantTok{TRUE}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{length}\NormalTok{() }
+\NormalTok{          \}}
+        \CommentTok{\# Apply mask to images}
+\NormalTok{          ref\_pifs }\OtherTok{\textless{}{-}} \FunctionTok{mask}\NormalTok{(pre\_ras, pif\_mask)   }\CommentTok{\# Pre{-}burn reference image}
+\NormalTok{          subj\_pifs }\OtherTok{\textless{}{-}} \FunctionTok{mask}\NormalTok{(post\_ras, pif\_mask) }\CommentTok{\# subject image to correct}
+    \DocumentationTok{\#\# PIF correction loop }
+      \CommentTok{\# stash list}
+\NormalTok{        corr\_bands }\OtherTok{\textless{}{-}} \FunctionTok{list}\NormalTok{()}
+      \CommentTok{\# loop through layers to get PIF pixels}
+        \ControlFlowTok{for}\NormalTok{(l }\ControlFlowTok{in} \DecValTok{1}\SpecialCharTok{:}\FunctionTok{nlyr}\NormalTok{(pre\_ras)) \{}
+          \CommentTok{\# Get PIF values for the current band}
+\NormalTok{            vals }\OtherTok{\textless{}{-}} \FunctionTok{tibble}\NormalTok{(}
+                      \AttributeTok{ref\_val =} \FunctionTok{values}\NormalTok{(ref\_pifs[[l]], }\AttributeTok{na.rm=}\ConstantTok{TRUE}\NormalTok{),}
+                      \AttributeTok{subj\_val =} \FunctionTok{values}\NormalTok{(subj\_pifs[[l]], }\AttributeTok{na.rm=}\ConstantTok{TRUE}\NormalTok{) }
+\NormalTok{                      )}
+          \CommentTok{\# Fit the linear model}
+\NormalTok{            post.corr }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(vals[[}\DecValTok{1}\NormalTok{]] }\SpecialCharTok{\textasciitilde{}}\NormalTok{ vals[[}\DecValTok{2}\NormalTok{]])}\SpecialCharTok{$}\NormalTok{coefficients}
+\NormalTok{            m }\OtherTok{=}\NormalTok{ post.corr[[}\DecValTok{2}\NormalTok{]]}
+\NormalTok{            b }\OtherTok{=}\NormalTok{ post.corr[[}\DecValTok{1}\NormalTok{]]}
+
+          \CommentTok{\# Apply correction to the entire subject band}
+\NormalTok{            corr\_bands[[l]] }\OtherTok{\textless{}{-}}\NormalTok{ (m }\SpecialCharTok{*}\NormalTok{ post\_ras[[l]]) }\SpecialCharTok{+}\NormalTok{ b}
+\NormalTok{        \} }\CommentTok{\# close band correction loop}
+      
+      \CommentTok{\# Merge corrected bands back into a single SpatRaster \& crop to pastures}
+\NormalTok{        corr\_rast }\OtherTok{\textless{}{-}} \FunctionTok{rast}\NormalTok{(corr\_bands ) }\SpecialCharTok{\%\textgreater{}\%}
+                        \FunctionTok{crop}\NormalTok{(loc\_sf )}
+      \CommentTok{\# crop the pre{-}burn image to pastures as well}
+\NormalTok{        pre\_burn }\OtherTok{\textless{}{-}}\NormalTok{ pre\_ras }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{crop}\NormalTok{(loc\_sf)}
+        \CommentTok{\# post\_burn \textless{}{-} post\_ras \%\textgreater{}\% crop(loc\_sf)   \# raw}
+    \CommentTok{\#}
+    \CommentTok{\# Step 3: Calculate dNBR from pre{-} and corrected post imagery}
+    \CommentTok{\#}
+      \CommentTok{\# create NBR rasters for pre and corrected post}
+\NormalTok{        nbr\_pre }\OtherTok{\textless{}{-}} \FunctionTok{calc\_nbr}\NormalTok{(pre\_burn}\SpecialCharTok{$}\NormalTok{nir, pre\_burn}\SpecialCharTok{$}\NormalTok{swir )  }
+\NormalTok{        nbr\_post }\OtherTok{\textless{}{-}} \FunctionTok{calc\_nbr}\NormalTok{(corr\_rast}\SpecialCharTok{$}\NormalTok{nir, corr\_rast}\SpecialCharTok{$}\NormalTok{swir) }\CommentTok{\# post{-}fire, corrected}
+        \CommentTok{\# nbr\_post\_raw \textless{}{-} calc\_nbr(post\_burn$nir, post\_burn$swir) \# post{-}fire, raw}
+        
+      \CommentTok{\# Calculate dNBR}
+\NormalTok{        dnbr }\OtherTok{\textless{}{-}}\NormalTok{ (nbr\_pre }\SpecialCharTok{{-}}\NormalTok{ nbr\_post) }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{rename}\NormalTok{(}\AttributeTok{dNBR =}\NormalTok{ nir)}
+        \FunctionTok{names}\NormalTok{(dnbr) }\OtherTok{\textless{}{-}}\NormalTok{ dp}\SpecialCharTok{$}\NormalTok{DeltaPair}
+\NormalTok{        dNBR[[j]] }\OtherTok{\textless{}{-}}\NormalTok{ dnbr}
+\NormalTok{    \} }\CommentTok{\# close DeltaPair loop}
+    \FunctionTok{rast}\NormalTok{(dNBR ) }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{writeRaster}\NormalTok{(}\FunctionTok{paste0}\NormalTok{(}\StringTok{\textquotesingle{}./data/RxRasters/Pasture/\textquotesingle{}}\NormalTok{, loc, }\StringTok{\textquotesingle{}.tiff\textquotesingle{}}\NormalTok{), }\AttributeTok{overwrite=}\ConstantTok{TRUE}\NormalTok{)}
+\NormalTok{  \} }\CommentTok{\# close location loop}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{Wildfires}\label{wildfires}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Regional rangeland raster from local version of USFS Rangelands product}
+\CommentTok{\# https://data.fs.usda.gov/geodata/rastergateway/rangelands/index.php}
+\NormalTok{  rr }\OtherTok{\textless{}{-}}\NormalTok{ terra}\SpecialCharTok{::}\FunctionTok{rast}\NormalTok{(}\StringTok{"C:/.../USrangelands.tif"}\NormalTok{)}
+\NormalTok{  region }\OtherTok{\textless{}{-}} \FunctionTok{read\_sf}\NormalTok{(}\StringTok{\textquotesingle{}./data/SeverityComparison.gpkg\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}StudyRegion\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+              \FunctionTok{st\_transform}\NormalTok{(}\FunctionTok{st\_crs}\NormalTok{(rr))}
+
+\NormalTok{  r\_rr }\OtherTok{\textless{}{-}}\NormalTok{ rr }\SpecialCharTok{\%\textgreater{}\%}\NormalTok{ terra}\SpecialCharTok{::}\FunctionTok{crop}\NormalTok{(region) }
+
+\NormalTok{  wf\_sf }\OtherTok{\textless{}{-}} \FunctionTok{read\_sf}\NormalTok{(}\StringTok{\textquotesingle{}./data/SeverityComparison.gpkg\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}GreatPlainsModifiedWF\textquotesingle{}}\NormalTok{)}
+  
+\NormalTok{  wf\_dir }\OtherTok{=} \StringTok{\textquotesingle{}...\textquotesingle{}}
+  
+\NormalTok{  wf\_images }\OtherTok{\textless{}{-}} 
+    \FunctionTok{tibble}\NormalTok{(}\AttributeTok{file =} \FunctionTok{list.files}\NormalTok{(wf\_dir, }\AttributeTok{pattern =} \StringTok{"}\SpecialCharTok{\textbackslash{}\textbackslash{}}\StringTok{.tiff$"}\NormalTok{, }\AttributeTok{ignore.case =} \ConstantTok{TRUE}\NormalTok{) ) }\SpecialCharTok{\%\textgreater{}\%} 
+    \FunctionTok{mutate}\NormalTok{(}\AttributeTok{info =} \FunctionTok{str\_remove}\NormalTok{(file, }\StringTok{\textquotesingle{}.tiff\textquotesingle{}}\NormalTok{)) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{separate}\NormalTok{(info, }\AttributeTok{into =} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}FireCode\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}period\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}ImageDate\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}type\textquotesingle{}}\NormalTok{), }\AttributeTok{sep =} \StringTok{\textquotesingle{}\_\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{mutate}\NormalTok{(}\AttributeTok{FireCode =} \FunctionTok{str\_replace}\NormalTok{(FireCode, }\StringTok{\textquotesingle{}{-}\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}\_\textquotesingle{}}\NormalTok{))}
+  
+\NormalTok{  wf\_perims }\OtherTok{\textless{}{-}}\NormalTok{ wf\_sf }\SpecialCharTok{\%\textgreater{}\%} 
+              \FunctionTok{filter}\NormalTok{(FireCode }\SpecialCharTok{\%in\%} \FunctionTok{unique}\NormalTok{(wf\_images}\SpecialCharTok{$}\NormalTok{FireCode)) }
     
-\NormalTok{    wf\_images }\OtherTok{\textless{}{-}} 
-      \FunctionTok{tibble}\NormalTok{(}\AttributeTok{file =} \FunctionTok{list.files}\NormalTok{(wf\_dir, }\AttributeTok{pattern =} \StringTok{"}\SpecialCharTok{\textbackslash{}\textbackslash{}}\StringTok{.tiff$"}\NormalTok{, }\AttributeTok{ignore.case =} \ConstantTok{TRUE}\NormalTok{) ) }\SpecialCharTok{\%\textgreater{}\%} 
-      \FunctionTok{mutate}\NormalTok{(}\AttributeTok{info =} \FunctionTok{str\_remove}\NormalTok{(file, }\StringTok{\textquotesingle{}.tiff\textquotesingle{}}\NormalTok{)) }\SpecialCharTok{\%\textgreater{}\%}
-      \FunctionTok{separate}\NormalTok{(info, }\AttributeTok{into =} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}FireCode\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}period\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}ImageDate\textquotesingle{}}\NormalTok{), }\AttributeTok{sep =} \StringTok{\textquotesingle{}\_\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
-      \FunctionTok{mutate}\NormalTok{(}\AttributeTok{FireCode =} \FunctionTok{str\_replace}\NormalTok{(FireCode, }\StringTok{\textquotesingle{}{-}\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}\_\textquotesingle{}}\NormalTok{))}
-    
-\NormalTok{    wildfires }\OtherTok{\textless{}{-}}\NormalTok{ wf\_sf }\SpecialCharTok{\%\textgreater{}\%} 
-                \FunctionTok{filter}\NormalTok{(FireCode }\SpecialCharTok{\%in\%} \FunctionTok{unique}\NormalTok{(wf\_images}\SpecialCharTok{$}\NormalTok{FireCode) ) }\SpecialCharTok{\%\textgreater{}\%}
-                \FunctionTok{st\_transform}\NormalTok{(albersEAC) }\SpecialCharTok{\%\textgreater{}\%}
-                \FunctionTok{mutate}\NormalTok{(}\AttributeTok{AreaHa =} \FunctionTok{st\_area}\NormalTok{(.), }
-                       \AttributeTok{AreaHa =} \FunctionTok{as.numeric}\NormalTok{(AreaHa) }\SpecialCharTok{*} \FloatTok{0.0001}\NormalTok{) }
-  \CommentTok{\# Sample raster imagery}
-\NormalTok{   WfBurnIndices }\OtherTok{\textless{}{-}} \FunctionTok{tibble}\NormalTok{() }
-    \ControlFlowTok{for}\NormalTok{(i }\ControlFlowTok{in} \DecValTok{1}\SpecialCharTok{:}\FunctionTok{length}\NormalTok{(wildfires}\SpecialCharTok{$}\NormalTok{FireCode)) \{}
-      \CommentTok{\# Get fire}
-\NormalTok{        fire }\OtherTok{\textless{}{-}}\NormalTok{  wildfires }\SpecialCharTok{\%\textgreater{}\%} 
-                  \FunctionTok{filter}\NormalTok{(FireCode }\SpecialCharTok{==} \FunctionTok{unique}\NormalTok{(wildfires}\SpecialCharTok{$}\NormalTok{FireCode)[i]) }\SpecialCharTok{\%\textgreater{}\%}
-                  \FunctionTok{st\_transform}\NormalTok{(}\FunctionTok{st\_crs}\NormalTok{(r\_rr))}
+\NormalTok{  WfSeverity }\OtherTok{\textless{}{-}} \FunctionTok{tibble}\NormalTok{() }
+
+    \ControlFlowTok{for}\NormalTok{(i }\ControlFlowTok{in} \DecValTok{1}\SpecialCharTok{:}\FunctionTok{length}\NormalTok{(}\FunctionTok{unique}\NormalTok{(wf\_perims}\SpecialCharTok{$}\NormalTok{FireCode))) \{}
+    \CommentTok{\# Get fire}
+\NormalTok{      fc }\OtherTok{=} \FunctionTok{unique}\NormalTok{(wf\_perims}\SpecialCharTok{$}\NormalTok{FireCode)[i]}
+\NormalTok{      fire }\OtherTok{\textless{}{-}}\NormalTok{  wf\_perims }\SpecialCharTok{\%\textgreater{}\%} 
+                \FunctionTok{filter}\NormalTok{(FireCode }\SpecialCharTok{==}\NormalTok{ fc)}
+ 
+    \CommentTok{\#}
+    \CommentTok{\# Step 1: Create cloud \& shadow mask from Scene Classification Layers}
+    \CommentTok{\#}
+    \CommentTok{\# Load, wrangle SCL as output by Copernicus GUI}
+      \CommentTok{\# Pre{-}fire SCL }
+\NormalTok{        pre\_scl }\OtherTok{=} \FunctionTok{filter}\NormalTok{(wf\_images, FireCode }\SpecialCharTok{==}\NormalTok{ fc, type }\SpecialCharTok{==} \StringTok{\textquotesingle{}SCL\textquotesingle{}}\NormalTok{, }
+\NormalTok{                         period }\SpecialCharTok{==} \StringTok{\textquotesingle{}B\textquotesingle{}}\NormalTok{)}\SpecialCharTok{$}\NormalTok{file}
+\NormalTok{        PreSCL }\OtherTok{\textless{}{-}} \FunctionTok{paste0}\NormalTok{(wf\_dir, }\StringTok{\textquotesingle{}/\textquotesingle{}}\NormalTok{, pre\_scl) }\SpecialCharTok{\%\textgreater{}\%} 
+                      \FunctionTok{rast}\NormalTok{() }
+        \FunctionTok{names}\NormalTok{(PreSCL) }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}r\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}g\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}b\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}dm\textquotesingle{}}\NormalTok{)}
+\NormalTok{        PreSCL }\SpecialCharTok{\%\textless{}\textgreater{}\%}
+          \FunctionTok{mutate}\NormalTok{(}\AttributeTok{sc =} \FunctionTok{case\_when}\NormalTok{(}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ b  }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\textasciitilde{}} \DecValTok{0}\NormalTok{, }
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ b}\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\textasciitilde{}} \DecValTok{1}\NormalTok{, }
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{47} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{47} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{47} \SpecialCharTok{\textasciitilde{}} \DecValTok{2}\NormalTok{,}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{100} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{50} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\textasciitilde{}} \DecValTok{3}\NormalTok{,}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{161} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\textasciitilde{}} \DecValTok{4}\NormalTok{,        }\CommentTok{\# 160 {-}\textgreater{} 161}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{231} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{90} \SpecialCharTok{\textasciitilde{}} \DecValTok{5}\NormalTok{,     }\CommentTok{\# 230 {-}\textgreater{} 231}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\textasciitilde{}} \DecValTok{6}\NormalTok{, }
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{129} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{129} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{129} \SpecialCharTok{\textasciitilde{}} \DecValTok{7}\NormalTok{,   }\CommentTok{\#  128 {-}\textgreater{} 129}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{193} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{193} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{193} \SpecialCharTok{\textasciitilde{}} \DecValTok{8}\NormalTok{,   }\CommentTok{\#  192 {-}\textgreater{} 193}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\textasciitilde{}} \DecValTok{9}\NormalTok{, }
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{100} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{201} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\textasciitilde{}} \DecValTok{10}\NormalTok{,  }\CommentTok{\# g 200 {-}\textgreater{} 201}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{150} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\textasciitilde{}} \DecValTok{11}\NormalTok{, }
+            \ConstantTok{TRUE} \SpecialCharTok{\textasciitilde{}} \DecValTok{99}\NormalTok{ ), }
+            \AttributeTok{sc =} \FunctionTok{as.ordered}\NormalTok{(sc)) }\SpecialCharTok{\%\textgreater{}\%}
+          \FunctionTok{select}\NormalTok{(sc)}
+      \CommentTok{\# Post fire SCL}
+\NormalTok{        post\_scl }\OtherTok{=} \FunctionTok{filter}\NormalTok{(wf\_images, FireCode }\SpecialCharTok{==}\NormalTok{ fc, type }\SpecialCharTok{==} \StringTok{\textquotesingle{}SCL\textquotesingle{}}\NormalTok{, }
+\NormalTok{                         period }\SpecialCharTok{==} \StringTok{\textquotesingle{}A\textquotesingle{}}\NormalTok{)}\SpecialCharTok{$}\NormalTok{file}
+\NormalTok{        PostSCL }\OtherTok{\textless{}{-}} \FunctionTok{paste0}\NormalTok{(wf\_dir, }\StringTok{\textquotesingle{}/\textquotesingle{}}\NormalTok{, post\_scl) }\SpecialCharTok{\%\textgreater{}\%} 
+                    \FunctionTok{rast}\NormalTok{() }
+        \FunctionTok{names}\NormalTok{(PostSCL) }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}r\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}g\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}b\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}dm\textquotesingle{}}\NormalTok{)}
+\NormalTok{        PostSCL }\SpecialCharTok{\%\textless{}\textgreater{}\%}
+          \FunctionTok{mutate}\NormalTok{(}\AttributeTok{sc =} \FunctionTok{case\_when}\NormalTok{(}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ b  }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\textasciitilde{}} \DecValTok{0}\NormalTok{, }
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ b}\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\textasciitilde{}} \DecValTok{1}\NormalTok{, }
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{47} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{47} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{47} \SpecialCharTok{\textasciitilde{}} \DecValTok{2}\NormalTok{,}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{100} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{50} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\textasciitilde{}} \DecValTok{3}\NormalTok{,}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{161} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\textasciitilde{}} \DecValTok{4}\NormalTok{,        }\CommentTok{\# g 160 {-}\textgreater{} 161}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{231} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{90} \SpecialCharTok{\textasciitilde{}} \DecValTok{5}\NormalTok{,     }\CommentTok{\# g 230 {-}\textgreater{} 231}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{0} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\textasciitilde{}} \DecValTok{6}\NormalTok{, }
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{129} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{129} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{129} \SpecialCharTok{\textasciitilde{}} \DecValTok{7}\NormalTok{,   }\CommentTok{\#  128 {-}\textgreater{} 129}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{193} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{193} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{193} \SpecialCharTok{\textasciitilde{}} \DecValTok{8}\NormalTok{,   }\CommentTok{\#  192 {-}\textgreater{} 193}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\textasciitilde{}} \DecValTok{9}\NormalTok{, }
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{100} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{201} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\textasciitilde{}} \DecValTok{10}\NormalTok{,  }\CommentTok{\# g 200 {-}\textgreater{} 201}
+\NormalTok{            r }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\&}\NormalTok{ g }\SpecialCharTok{==} \DecValTok{150} \SpecialCharTok{\&}\NormalTok{ b }\SpecialCharTok{==} \DecValTok{255} \SpecialCharTok{\textasciitilde{}} \DecValTok{11}\NormalTok{, }
+            \ConstantTok{TRUE} \SpecialCharTok{\textasciitilde{}} \DecValTok{99}\NormalTok{ ), }
+            \AttributeTok{sc =} \FunctionTok{as.ordered}\NormalTok{(sc)) }\SpecialCharTok{\%\textgreater{}\%}
+          \FunctionTok{select}\NormalTok{(sc)}
+        \CommentTok{\# Define classifications to exclude}
+\NormalTok{          ex\_sc }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{, }\DecValTok{2}\NormalTok{, }\DecValTok{3}\NormalTok{, }\DecValTok{7}\SpecialCharTok{:}\DecValTok{11}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{as.ordered}\NormalTok{() }
+        \CommentTok{\# Get the excluded classifications for each image}
+\NormalTok{          pre\_mask }\OtherTok{\textless{}{-}} 
+\NormalTok{            PreSCL }\SpecialCharTok{\%\textgreater{}\%}
+            \FunctionTok{mutate}\NormalTok{(}\AttributeTok{sc =} \FunctionTok{ifelse}\NormalTok{(sc }\SpecialCharTok{\%in\%}\NormalTok{ ex\_sc, }\DecValTok{1}\NormalTok{, }\DecValTok{0}\NormalTok{)) }
+\NormalTok{          post\_mask }\OtherTok{\textless{}{-}} 
+\NormalTok{            PostSCL }\SpecialCharTok{\%\textgreater{}\%}
+            \FunctionTok{mutate}\NormalTok{(}\AttributeTok{sc =} \FunctionTok{ifelse}\NormalTok{(sc }\SpecialCharTok{\%in\%}\NormalTok{ ex\_sc, }\DecValTok{1}\NormalTok{, }\DecValTok{0}\NormalTok{))}
+        \CommentTok{\# Create the combined mask}
+\NormalTok{          CombinedMask }\OtherTok{\textless{}{-}}\NormalTok{ pre\_mask }\SpecialCharTok{+}\NormalTok{ post\_mask }
+\NormalTok{          CombinedMask }\SpecialCharTok{\%\textless{}\textgreater{}\%} \FunctionTok{mutate}\NormalTok{(}\AttributeTok{sc =} \FunctionTok{ifelse}\NormalTok{(sc }\SpecialCharTok{\textgreater{}=} \DecValTok{1}\NormalTok{, }\ConstantTok{NA}\NormalTok{, }\DecValTok{1}\NormalTok{))}
+    \CommentTok{\#}
+    \CommentTok{\# Step 2: PIF correction on post{-}fire image}
+    \CommentTok{\#}
+      \DocumentationTok{\#\# Load raw bands}
+        \CommentTok{\# pre image}
+\NormalTok{          pre\_raw }\OtherTok{=} \FunctionTok{filter}\NormalTok{(wf\_images, FireCode }\SpecialCharTok{==}\NormalTok{ fc, type }\SpecialCharTok{==} \StringTok{\textquotesingle{}RAW\textquotesingle{}}\NormalTok{, }
+\NormalTok{                             period }\SpecialCharTok{==} \StringTok{\textquotesingle{}B\textquotesingle{}}\NormalTok{)}\SpecialCharTok{$}\NormalTok{file}
+\NormalTok{          pre\_path }\OtherTok{=} \FunctionTok{paste0}\NormalTok{(wf\_dir, }\StringTok{\textquotesingle{}/\textquotesingle{}}\NormalTok{, pre\_raw)}
+\NormalTok{          pre\_ras }\OtherTok{\textless{}{-}} \FunctionTok{rast}\NormalTok{(pre\_path) }\SpecialCharTok{\%\textgreater{}\%} 
+                        \FunctionTok{mask}\NormalTok{(., CombinedMask)}
+\NormalTok{          pre\_ras }\OtherTok{\textless{}{-}}\NormalTok{  (pre\_ras}\DecValTok{{-}10000}\NormalTok{)}\SpecialCharTok{/}\DecValTok{10000}
+          \FunctionTok{names}\NormalTok{(pre\_ras) }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}green\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}red\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}nir\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}swir\textquotesingle{}}\NormalTok{)}
+        \CommentTok{\# post{-}fire}
+\NormalTok{          post\_raw }\OtherTok{=} \FunctionTok{filter}\NormalTok{(wf\_images, FireCode }\SpecialCharTok{==}\NormalTok{ fc, type }\SpecialCharTok{==} \StringTok{\textquotesingle{}RAW\textquotesingle{}}\NormalTok{, }
+\NormalTok{                              period }\SpecialCharTok{==} \StringTok{\textquotesingle{}A\textquotesingle{}}\NormalTok{)}\SpecialCharTok{$}\NormalTok{file}
+\NormalTok{          post\_path }\OtherTok{=} \FunctionTok{paste0}\NormalTok{(wf\_dir, }\StringTok{\textquotesingle{}/\textquotesingle{}}\NormalTok{, post\_raw)}
+\NormalTok{          post\_ras }\OtherTok{\textless{}{-}} \FunctionTok{rast}\NormalTok{(post\_path) }\SpecialCharTok{\%\textgreater{}\%} 
+                        \FunctionTok{mask}\NormalTok{(., CombinedMask)}
+\NormalTok{          post\_ras }\OtherTok{=}\NormalTok{ (post\_ras}\DecValTok{{-}10000}\NormalTok{)}\SpecialCharTok{/}\DecValTok{10000}
+          \FunctionTok{names}\NormalTok{(post\_ras) }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}green\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}red\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}nir\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}swir\textquotesingle{}}\NormalTok{)}
+      \CommentTok{\# PIF correction }
+        \CommentTok{\# Calculate the absolute difference for PIF{-}sensitive bands}
+\NormalTok{          diff\_img }\OtherTok{\textless{}{-}} \FunctionTok{abs}\NormalTok{(pre\_ras[[}\FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}green\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}red\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}swir\textquotesingle{}}\NormalTok{)]] }\SpecialCharTok{{-}} 
+\NormalTok{                            post\_ras[[}\FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}green\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}red\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}swir\textquotesingle{}}\NormalTok{)]])}
+        \CommentTok{\# Sum the differences across bands to get a "change magnitude" map}
+\NormalTok{          mag }\OtherTok{\textless{}{-}} \FunctionTok{sum}\NormalTok{(diff\_img)}
+        \CommentTok{\# Define a threshold for "No Change" (e.g., the bottom 1\% of pixels) }
+\NormalTok{          thresh }\OtherTok{\textless{}{-}} \FunctionTok{quantile}\NormalTok{(}\FunctionTok{values}\NormalTok{(mag, }\AttributeTok{na.rm=}\ConstantTok{TRUE}\NormalTok{), }\AttributeTok{probs =} \FloatTok{0.01}\NormalTok{)}
+        \CommentTok{\# Create PIF mask}
+\NormalTok{          pif\_mask }\OtherTok{=} \FunctionTok{ifel}\NormalTok{(mag }\SpecialCharTok{\textgreater{}=}\NormalTok{ thresh, }\ConstantTok{NA}\NormalTok{, mag)}
+        \CommentTok{\# Ensure there are enough relatively{-}invariant pixels to do regression}
+\NormalTok{          pif\_pix }\OtherTok{\textless{}{-}} \FunctionTok{values}\NormalTok{(pif\_mask}\SpecialCharTok{$}\NormalTok{sum, }\AttributeTok{na.rm=}\ConstantTok{TRUE}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{length}\NormalTok{()  }
+          \ControlFlowTok{if}\NormalTok{(pif\_pix }\SpecialCharTok{\textless{}} \DecValTok{100}\NormalTok{) \{ }
+\NormalTok{            thresh }\OtherTok{\textless{}{-}} \FunctionTok{quantile}\NormalTok{(}\FunctionTok{values}\NormalTok{(mag, }\AttributeTok{na.rm=}\ConstantTok{TRUE}\NormalTok{), }\AttributeTok{probs =} \FloatTok{0.1}\NormalTok{)}
+\NormalTok{            pif\_mask }\OtherTok{=} \FunctionTok{ifel}\NormalTok{(mag }\SpecialCharTok{\textgreater{}=}\NormalTok{ thresh, }\ConstantTok{NA}\NormalTok{, mag)}
+\NormalTok{            pif\_pix }\OtherTok{\textless{}{-}} \FunctionTok{values}\NormalTok{(pif\_mask}\SpecialCharTok{$}\NormalTok{sum, }\AttributeTok{na.rm=}\ConstantTok{TRUE}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{length}\NormalTok{() }
+\NormalTok{          \}}
+          \ControlFlowTok{if}\NormalTok{(pif\_pix }\SpecialCharTok{\textless{}} \DecValTok{10}\NormalTok{) \{ }
+\NormalTok{            thresh }\OtherTok{\textless{}{-}} \FunctionTok{quantile}\NormalTok{(}\FunctionTok{values}\NormalTok{(mag, }\AttributeTok{na.rm=}\ConstantTok{TRUE}\NormalTok{), }\AttributeTok{probs =} \FloatTok{0.1}\NormalTok{)}
+\NormalTok{            pif\_mask }\OtherTok{=} \FunctionTok{ifel}\NormalTok{(mag }\SpecialCharTok{\textgreater{}=}\NormalTok{ thresh, }\ConstantTok{NA}\NormalTok{, mag)}
+\NormalTok{            pif\_pix }\OtherTok{\textless{}{-}} \FunctionTok{values}\NormalTok{(pif\_mask}\SpecialCharTok{$}\NormalTok{sum, }\AttributeTok{na.rm=}\ConstantTok{TRUE}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{length}\NormalTok{() }
+\NormalTok{          \}}
+          
+        \CommentTok{\# Apply mask to images}
+\NormalTok{          ref\_pifs }\OtherTok{\textless{}{-}} \FunctionTok{mask}\NormalTok{(pre\_ras, pif\_mask)   }\CommentTok{\# Pre{-}burn reference image}
+\NormalTok{          subj\_pifs }\OtherTok{\textless{}{-}} \FunctionTok{mask}\NormalTok{(post\_ras, pif\_mask) }\CommentTok{\# subject image to correct}
+    \DocumentationTok{\#\# PIF correction loop }
+      \CommentTok{\# stash list}
+\NormalTok{        corr\_bands }\OtherTok{\textless{}{-}} \FunctionTok{list}\NormalTok{()}
+      \CommentTok{\# loop through layers to get PIF pixels}
+        \ControlFlowTok{for}\NormalTok{(i }\ControlFlowTok{in} \DecValTok{1}\SpecialCharTok{:}\FunctionTok{nlyr}\NormalTok{(pre\_ras)) \{}
+          \CommentTok{\# Get PIF values for the current band}
+\NormalTok{            vals }\OtherTok{\textless{}{-}} \FunctionTok{tibble}\NormalTok{(}
+                      \AttributeTok{ref\_val =} \FunctionTok{values}\NormalTok{(ref\_pifs[[i]], }\AttributeTok{na.rm=}\ConstantTok{TRUE}\NormalTok{),}
+                      \AttributeTok{subj\_val =} \FunctionTok{values}\NormalTok{(subj\_pifs[[i]], }\AttributeTok{na.rm=}\ConstantTok{TRUE}\NormalTok{) }
+\NormalTok{                      )}
+          \CommentTok{\# Fit the linear model}
+            \CommentTok{\# post.corr \textless{}{-} suppressMessages(}
+            \CommentTok{\#               lmodel2:::lmodel2(vals[[1]] \textasciitilde{} vals[[2]])$regression.results[2, 2:3]}
+            \CommentTok{\#               )}
+\NormalTok{            post.corr }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(vals[[}\DecValTok{1}\NormalTok{]] }\SpecialCharTok{\textasciitilde{}}\NormalTok{ vals[[}\DecValTok{2}\NormalTok{]])}\SpecialCharTok{$}\NormalTok{coefficients}
+\NormalTok{            m }\OtherTok{=}\NormalTok{ post.corr[[}\DecValTok{2}\NormalTok{]]}
+\NormalTok{            b }\OtherTok{=}\NormalTok{ post.corr[[}\DecValTok{1}\NormalTok{]]}
+          \CommentTok{\# Apply correction to the entire subject band}
+\NormalTok{            corr\_bands[[i]] }\OtherTok{\textless{}{-}}\NormalTok{ (m }\SpecialCharTok{*}\NormalTok{ post\_ras[[i]]) }\SpecialCharTok{+}\NormalTok{ b}
+\NormalTok{          \}}
+      
+      \CommentTok{\# Merge corrected bands back into a single SpatRaster \& crop to fire perimeter}
+\NormalTok{        corr\_rast }\OtherTok{\textless{}{-}} \FunctionTok{rast}\NormalTok{(corr\_bands ) }\SpecialCharTok{\%\textgreater{}\%}
+                        \FunctionTok{crop}\NormalTok{(fire }\SpecialCharTok{\%\textgreater{}\%} 
+                               \FunctionTok{st\_transform}\NormalTok{(}\DecValTok{4326}\NormalTok{) }
+\NormalTok{                             )}
+      \CommentTok{\# crop the pre{-}burn image to the fire perimeter as well}
+\NormalTok{        pre\_burn }\OtherTok{\textless{}{-}}\NormalTok{ pre\_ras }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{crop}\NormalTok{(fire }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{st\_transform}\NormalTok{(}\DecValTok{4326}\NormalTok{))}
+    \CommentTok{\#}
+    \CommentTok{\# Step 3: Calculate dNBR from pre{-} and corrected post imagery}
+    \CommentTok{\#}
+      \CommentTok{\# create NBR rasters for pre and corrected post}
+\NormalTok{        nbr\_pre }\OtherTok{\textless{}{-}} \FunctionTok{calc\_nbr}\NormalTok{(pre\_burn}\SpecialCharTok{$}\NormalTok{nir, pre\_burn}\SpecialCharTok{$}\NormalTok{swir )  }
+\NormalTok{        nbr\_post }\OtherTok{\textless{}{-}} \FunctionTok{calc\_nbr}\NormalTok{(corr\_rast}\SpecialCharTok{$}\NormalTok{nir, corr\_rast}\SpecialCharTok{$}\NormalTok{swir) }\CommentTok{\# post{-}fire, corrected}
+
+      \CommentTok{\# Calculate dNBR}
+\NormalTok{        dnbr }\OtherTok{\textless{}{-}}\NormalTok{ (nbr\_pre }\SpecialCharTok{{-}}\NormalTok{ nbr\_post) }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{rename}\NormalTok{(}\AttributeTok{dNBR =}\NormalTok{ nir)}
+    \CommentTok{\#}
+    \CommentTok{\# Step 4: Sample dNBR from rangeland pixels }
+    \CommentTok{\#}
+      \CommentTok{\# internal buffer against edge effects}
+\NormalTok{        buff }\OtherTok{\textless{}{-}}\NormalTok{ fire }\SpecialCharTok{\%\textgreater{}\%}
+                  \FunctionTok{st\_transform}\NormalTok{(albersEAC) }\SpecialCharTok{\%\textgreater{}\%}
+                  \FunctionTok{mutate}\NormalTok{(}\AttributeTok{AreaHa =} \FunctionTok{st\_area}\NormalTok{(.), }
+                         \AttributeTok{AreaHa =} \FunctionTok{as.numeric}\NormalTok{(AreaHa) }\SpecialCharTok{*} \FloatTok{0.0001}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%} 
+                  \FunctionTok{st\_buffer}\NormalTok{(}\SpecialCharTok{{-}}\DecValTok{20}\NormalTok{)}
       \CommentTok{\# create gridded sample points}
-\NormalTok{        buff }\OtherTok{\textless{}{-}}\NormalTok{ fire  }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{st\_buffer}\NormalTok{(}\SpecialCharTok{{-}}\DecValTok{20}\NormalTok{)}
         \CommentTok{\# cell size factor scaled to total area}
 \NormalTok{          cs }\OtherTok{=} \FunctionTok{case\_when}\NormalTok{(}
-\NormalTok{            fire}\SpecialCharTok{$}\NormalTok{AreaHa }\SpecialCharTok{\textless{}} \DecValTok{10} \SpecialCharTok{\textasciitilde{}} \DecValTok{25}\NormalTok{, }
-            \FunctionTok{between}\NormalTok{(fire}\SpecialCharTok{$}\NormalTok{AreaHa, }\DecValTok{10}\NormalTok{, }\DecValTok{50}\NormalTok{) }\SpecialCharTok{\textasciitilde{}} \DecValTok{36}\NormalTok{,}
-            \FunctionTok{between}\NormalTok{(fire}\SpecialCharTok{$}\NormalTok{AreaHa, }\DecValTok{50}\NormalTok{, }\DecValTok{100}\NormalTok{) }\SpecialCharTok{\textasciitilde{}} \DecValTok{50}\NormalTok{, }
-            \FunctionTok{between}\NormalTok{(fire}\SpecialCharTok{$}\NormalTok{AreaHa, }\DecValTok{100}\NormalTok{, }\DecValTok{200}\NormalTok{) }\SpecialCharTok{\textasciitilde{}} \DecValTok{100}\NormalTok{, }
-            \FunctionTok{between}\NormalTok{(fire}\SpecialCharTok{$}\NormalTok{AreaHa, }\DecValTok{200}\NormalTok{, }\DecValTok{300}\NormalTok{) }\SpecialCharTok{\textasciitilde{}} \DecValTok{125}\NormalTok{, }
-            \FunctionTok{between}\NormalTok{(fire}\SpecialCharTok{$}\NormalTok{AreaHa, }\DecValTok{300}\NormalTok{, }\DecValTok{500}\NormalTok{) }\SpecialCharTok{\textasciitilde{}} \DecValTok{150}\NormalTok{, }
-            \FunctionTok{between}\NormalTok{(fire}\SpecialCharTok{$}\NormalTok{AreaHa, }\DecValTok{500}\NormalTok{, }\DecValTok{700}\NormalTok{) }\SpecialCharTok{\textasciitilde{}} \DecValTok{200}\NormalTok{, }
-            \FunctionTok{between}\NormalTok{(fire}\SpecialCharTok{$}\NormalTok{AreaHa, }\DecValTok{700}\NormalTok{, }\DecValTok{3000}\NormalTok{) }\SpecialCharTok{\textasciitilde{}} \DecValTok{300}\NormalTok{, }
-            \FunctionTok{between}\NormalTok{(fire}\SpecialCharTok{$}\NormalTok{AreaHa, }\DecValTok{3000}\NormalTok{, }\DecValTok{5000}\NormalTok{) }\SpecialCharTok{\textasciitilde{}} \DecValTok{500}\NormalTok{, }
-            \FunctionTok{between}\NormalTok{(fire}\SpecialCharTok{$}\NormalTok{AreaHa, }\DecValTok{5000}\NormalTok{, }\DecValTok{7000}\NormalTok{) }\SpecialCharTok{\textasciitilde{}} \DecValTok{700}\NormalTok{,}
-\NormalTok{            fire}\SpecialCharTok{$}\NormalTok{AreaHa }\SpecialCharTok{\textgreater{}} \DecValTok{7000} \SpecialCharTok{\textasciitilde{}} \DecValTok{1000}\NormalTok{ )}
-\NormalTok{        pts }\OtherTok{\textless{}{-}}\NormalTok{ buff }\SpecialCharTok{\%\textgreater{}\%}
-          \FunctionTok{st\_make\_grid}\NormalTok{(}\AttributeTok{cellsize =}\NormalTok{ cs, }
-                       \AttributeTok{square =} \ConstantTok{FALSE}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%} 
-          \FunctionTok{st\_centroid}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
-          \FunctionTok{st\_intersection}\NormalTok{(buff) }\SpecialCharTok{\%\textgreater{}\%}
-          \FunctionTok{st\_as\_sf}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
-          \FunctionTok{rowid\_to\_column}\NormalTok{(}\StringTok{\textquotesingle{}ID\textquotesingle{}}\NormalTok{)}
-       \CommentTok{\# Filter sample points to rangeland cells}
+\NormalTok{                buff}\SpecialCharTok{$}\NormalTok{AreaHa }\SpecialCharTok{\textless{}} \DecValTok{10} \SpecialCharTok{\textasciitilde{}} \DecValTok{25}\NormalTok{, }
+                \FunctionTok{between}\NormalTok{(buff}\SpecialCharTok{$}\NormalTok{AreaHa, }\DecValTok{10}\NormalTok{, }\DecValTok{50}\NormalTok{) }\SpecialCharTok{\textasciitilde{}} \DecValTok{36}\NormalTok{,}
+                \FunctionTok{between}\NormalTok{(buff}\SpecialCharTok{$}\NormalTok{AreaHa, }\DecValTok{50}\NormalTok{, }\DecValTok{100}\NormalTok{) }\SpecialCharTok{\textasciitilde{}} \DecValTok{50}\NormalTok{, }
+                \FunctionTok{between}\NormalTok{(buff}\SpecialCharTok{$}\NormalTok{AreaHa, }\DecValTok{100}\NormalTok{, }\DecValTok{200}\NormalTok{) }\SpecialCharTok{\textasciitilde{}} \DecValTok{100}\NormalTok{, }
+                \FunctionTok{between}\NormalTok{(buff}\SpecialCharTok{$}\NormalTok{AreaHa, }\DecValTok{200}\NormalTok{, }\DecValTok{300}\NormalTok{) }\SpecialCharTok{\textasciitilde{}} \DecValTok{125}\NormalTok{, }
+                \FunctionTok{between}\NormalTok{(buff}\SpecialCharTok{$}\NormalTok{AreaHa, }\DecValTok{300}\NormalTok{, }\DecValTok{500}\NormalTok{) }\SpecialCharTok{\textasciitilde{}} \DecValTok{150}\NormalTok{, }
+                \FunctionTok{between}\NormalTok{(buff}\SpecialCharTok{$}\NormalTok{AreaHa, }\DecValTok{500}\NormalTok{, }\DecValTok{700}\NormalTok{) }\SpecialCharTok{\textasciitilde{}} \DecValTok{200}\NormalTok{, }
+                \FunctionTok{between}\NormalTok{(buff}\SpecialCharTok{$}\NormalTok{AreaHa, }\DecValTok{700}\NormalTok{, }\DecValTok{3000}\NormalTok{) }\SpecialCharTok{\textasciitilde{}} \DecValTok{300}\NormalTok{, }
+                \FunctionTok{between}\NormalTok{(buff}\SpecialCharTok{$}\NormalTok{AreaHa, }\DecValTok{3000}\NormalTok{, }\DecValTok{5000}\NormalTok{) }\SpecialCharTok{\textasciitilde{}} \DecValTok{500}\NormalTok{, }
+                \FunctionTok{between}\NormalTok{(buff}\SpecialCharTok{$}\NormalTok{AreaHa, }\DecValTok{5000}\NormalTok{, }\DecValTok{7000}\NormalTok{) }\SpecialCharTok{\textasciitilde{}} \DecValTok{700}\NormalTok{,}
+\NormalTok{                buff}\SpecialCharTok{$}\NormalTok{AreaHa }\SpecialCharTok{\textgreater{}} \DecValTok{7000} \SpecialCharTok{\textasciitilde{}} \DecValTok{1000}\NormalTok{ )}
+       \CommentTok{\# Find points as centroids of grid w/in perimeter   }
+\NormalTok{          pts }\OtherTok{\textless{}{-}}\NormalTok{ buff }\SpecialCharTok{\%\textgreater{}\%}
+                  \FunctionTok{st\_make\_grid}\NormalTok{(}\AttributeTok{cellsize =}\NormalTok{ cs, }
+                               \AttributeTok{square =} \ConstantTok{FALSE}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%} 
+                  \FunctionTok{st\_centroid}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
+                  \FunctionTok{st\_intersection}\NormalTok{(buff) }\SpecialCharTok{\%\textgreater{}\%}
+                  \FunctionTok{st\_as\_sf}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
+                  \FunctionTok{rowid\_to\_column}\NormalTok{(}\StringTok{\textquotesingle{}ID\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+                  \FunctionTok{st\_transform}\NormalTok{(}\DecValTok{5070}\NormalTok{)}
+        \CommentTok{\# Filter sample points to rangeland cells}
 \NormalTok{          r\_pts }\OtherTok{\textless{}{-}}  
-\NormalTok{            terra}\SpecialCharTok{::}\FunctionTok{extract}\NormalTok{(rr\_tr, }
-\NormalTok{                          terra}\SpecialCharTok{::}\FunctionTok{vect}\NormalTok{(pts), }
-                          \AttributeTok{df =} \ConstantTok{TRUE}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+\NormalTok{            terra}\SpecialCharTok{::}\FunctionTok{extract}\NormalTok{(r\_rr, }
+\NormalTok{                           terra}\SpecialCharTok{::}\FunctionTok{vect}\NormalTok{(pts), }
+                           \AttributeTok{df =} \ConstantTok{TRUE}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
             \FunctionTok{filter}\NormalTok{(LABEL }\SpecialCharTok{\%in\%} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}Rangeland\textquotesingle{}}\NormalTok{, }
                                 \StringTok{\textquotesingle{}Transitional Rangeland\textquotesingle{}}\NormalTok{, }
                                 \StringTok{\textquotesingle{}Afforested CO\textquotesingle{}}\NormalTok{) ) }
-\NormalTok{          pts }\SpecialCharTok{\%\textless{}\textgreater{}\%} \FunctionTok{filter}\NormalTok{(ID }\SpecialCharTok{\%in\%}\NormalTok{ r\_pts}\SpecialCharTok{$}\NormalTok{ID) }\SpecialCharTok{\%\textgreater{}\%}
-                    \FunctionTok{st\_transform}\NormalTok{(}\DecValTok{4326}\NormalTok{)}
-    \CommentTok{\# dNBR \& NDVI}
-      \CommentTok{\# Fetch \& process multi{-}band rasters}
-      \CommentTok{\# pre image}
-\NormalTok{        pre\_image }\OtherTok{=} \FunctionTok{filter}\NormalTok{(wf\_images, FireCode }\SpecialCharTok{==}\NormalTok{ fire}\SpecialCharTok{$}\NormalTok{FireCode, , }
-\NormalTok{                           period }\SpecialCharTok{==} \StringTok{\textquotesingle{}B\textquotesingle{}}\NormalTok{)}\SpecialCharTok{$}\NormalTok{file}
-\NormalTok{        pre\_path }\OtherTok{=} \FunctionTok{paste0}\NormalTok{(wf\_dir, }\StringTok{\textquotesingle{}/\textquotesingle{}}\NormalTok{, pre\_image)}
-\NormalTok{        pre\_ras }\OtherTok{\textless{}{-}}\NormalTok{ terra}\SpecialCharTok{::}\FunctionTok{rast}\NormalTok{(pre\_path) }\SpecialCharTok{\%\textgreater{}\%}
-\NormalTok{                    terra}\SpecialCharTok{::}\FunctionTok{crop}\NormalTok{(terra}\SpecialCharTok{::}\FunctionTok{vect}\NormalTok{(fire }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{st\_transform}\NormalTok{(}\DecValTok{4326}\NormalTok{)))}
-\NormalTok{        pre\_ras }\OtherTok{\textless{}{-}}\NormalTok{  (pre\_ras}\DecValTok{{-}10000}\NormalTok{)}\SpecialCharTok{/}\DecValTok{10000}
-      \CommentTok{\# post{-}fire}
-\NormalTok{        post\_image }\OtherTok{=} \FunctionTok{filter}\NormalTok{(wf\_images, FireCode }\SpecialCharTok{==}\NormalTok{ fire}\SpecialCharTok{$}\NormalTok{FireCode, , }
-\NormalTok{                            period }\SpecialCharTok{==} \StringTok{\textquotesingle{}A\textquotesingle{}}\NormalTok{)}\SpecialCharTok{$}\NormalTok{file}
-\NormalTok{        post\_path }\OtherTok{=} \FunctionTok{paste0}\NormalTok{(wf\_dir, }\StringTok{\textquotesingle{}/\textquotesingle{}}\NormalTok{, post\_image)}
-\NormalTok{        post\_ras }\OtherTok{\textless{}{-}}\NormalTok{ terra}\SpecialCharTok{::}\FunctionTok{rast}\NormalTok{(post\_path) }\SpecialCharTok{\%\textgreater{}\%}
-\NormalTok{                    terra}\SpecialCharTok{::}\FunctionTok{crop}\NormalTok{(terra}\SpecialCharTok{::}\FunctionTok{vect}\NormalTok{(fire }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{st\_transform}\NormalTok{(}\DecValTok{4326}\NormalTok{)))}
-\NormalTok{        post\_ras }\OtherTok{=}\NormalTok{ (post\_ras}\DecValTok{{-}10000}\NormalTok{)}\SpecialCharTok{/}\DecValTok{10000}
-      \CommentTok{\# Calculate dNBR \& replace in pre{-}fire raster}
-\NormalTok{        d\_ras }\OtherTok{=}\NormalTok{ pre\_ras[[}\DecValTok{1}\NormalTok{]]}\SpecialCharTok{{-}}\NormalTok{ post\_ras[[}\DecValTok{1}\NormalTok{]]}
-\NormalTok{        pre\_ras[[}\DecValTok{1}\NormalTok{]] }\OtherTok{\textless{}{-}}\NormalTok{ d\_ras}
-        \FunctionTok{names}\NormalTok{(pre\_ras) }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}dNBR\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}ndvi\textquotesingle{}}\NormalTok{)}
-      \CommentTok{\# Sample rasters}
-\NormalTok{        terra}\SpecialCharTok{::}\FunctionTok{extract}\NormalTok{(pre\_ras[[}\DecValTok{1}\SpecialCharTok{:}\DecValTok{2}\NormalTok{]],}
+\NormalTok{          pts }\SpecialCharTok{\%\textless{}\textgreater{}\%} \FunctionTok{filter}\NormalTok{(ID }\SpecialCharTok{\%in\%}\NormalTok{ r\_pts}\SpecialCharTok{$}\NormalTok{ID) }
+      \CommentTok{\# Extract values at points}
+\NormalTok{        terra}\SpecialCharTok{::}\FunctionTok{extract}\NormalTok{(dnbr,}
 \NormalTok{                       pts }\SpecialCharTok{\%\textgreater{}\%}
+                         \FunctionTok{st\_transform}\NormalTok{(}\DecValTok{4326}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
 \NormalTok{                         terra}\SpecialCharTok{::}\FunctionTok{vect}\NormalTok{(), }
                        \AttributeTok{fun =}\NormalTok{ mean, }
                        \AttributeTok{method =} \StringTok{\textquotesingle{}bilinear\textquotesingle{}}\NormalTok{,}
                        \AttributeTok{bind =} \ConstantTok{TRUE}\NormalTok{)  }\SpecialCharTok{\%\textgreater{}\%} 
-        \FunctionTok{as\_tibble}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
-     \FunctionTok{add\_column}\NormalTok{(}\AttributeTok{FireCode=}\NormalTok{fire}\SpecialCharTok{$}\NormalTok{FireCode, }\AttributeTok{.before =} \DecValTok{1}\NormalTok{ ) }\SpecialCharTok{\%\textgreater{}\%}
-     \FunctionTok{bind\_rows}\NormalTok{(., WfBurnIndices) }\OtherTok{{-}\textgreater{}}\NormalTok{ WfBurnIndices}
+        \FunctionTok{as\_tibble}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%} 
+        \FunctionTok{add\_column}\NormalTok{(}\AttributeTok{FireCode=}\NormalTok{fc, }\AttributeTok{.before =} \DecValTok{1}\NormalTok{ ) }\SpecialCharTok{\%\textgreater{}\%} 
+        \FunctionTok{filter}\NormalTok{(}\SpecialCharTok{!} \FunctionTok{is.na}\NormalTok{(dNBR)) }\SpecialCharTok{\%\textgreater{}\%} 
+        \FunctionTok{bind\_rows}\NormalTok{(., WfSeverity) }\OtherTok{{-}\textgreater{}}\NormalTok{ WfSeverity}
 \NormalTok{    \}}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{Extracting severity data from
+rasters}\label{extracting-severity-data-from-rasters}
+
+\subsubsection{For thermocouple locations in Rx
+fires}\label{for-thermocouple-locations-in-rx-fires}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Load Rx fire data}
+  \CommentTok{\# burn \& imagery dates }
+\NormalTok{    rx\_dates }\OtherTok{\textless{}{-}}\FunctionTok{read\_xlsx}\NormalTok{(}\StringTok{"C:/.../ImageDates.xlsx"}\NormalTok{, }
+                         \StringTok{\textquotesingle{}PreBurnPostDatesTC\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{mutate}\NormalTok{(}\FunctionTok{across}\NormalTok{(}\FunctionTok{c}\NormalTok{(BurnDate}\SpecialCharTok{:}\NormalTok{PostBurn), }\SpecialCharTok{\textasciitilde{}} \FunctionTok{as.character}\NormalTok{(.x)))}
+  \CommentTok{\# spatial \& fire data for the thermocouples }
+\NormalTok{    rx\_sf }\OtherTok{\textless{}{-}} \FunctionTok{st\_read}\NormalTok{(}\StringTok{\textquotesingle{}./data/ThermocouplePlacements.gpkg\textquotesingle{}}\NormalTok{, }
+                     \StringTok{\textquotesingle{}AllBurnData\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+              \FunctionTok{mutate}\NormalTok{(}\AttributeTok{BurnDate =} \FunctionTok{as.character}\NormalTok{(date) ) }\SpecialCharTok{\%\textgreater{}\%}
+              \FunctionTok{select}\NormalTok{(}\SpecialCharTok{{-}}\NormalTok{date) }\SpecialCharTok{\%\textgreater{}\%}
+              \FunctionTok{full\_join}\NormalTok{(}\AttributeTok{by =} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}location\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}BurnDate\textquotesingle{}}\NormalTok{), }
+\NormalTok{                        rx\_dates) }\SpecialCharTok{\%\textgreater{}\%}
+              \FunctionTok{st\_transform}\NormalTok{(}\DecValTok{4326}\NormalTok{)}
+
+\NormalTok{RxPointSeverity }\OtherTok{\textless{}{-}} \FunctionTok{tibble}\NormalTok{() }
+
+  \ControlFlowTok{for}\NormalTok{(l }\ControlFlowTok{in} \DecValTok{1}\SpecialCharTok{:}\FunctionTok{length}\NormalTok{(}\FunctionTok{unique}\NormalTok{(rx\_perims}\SpecialCharTok{$}\NormalTok{burn))) \{}
+\NormalTok{    lc }\OtherTok{=} \FunctionTok{unique}\NormalTok{(rx\_sf}\SpecialCharTok{$}\NormalTok{location)[l]}
+\NormalTok{    loc }\OtherTok{=} \FunctionTok{filter}\NormalTok{(rx\_sf, location }\SpecialCharTok{==}\NormalTok{ lc)}
+\NormalTok{    dnbr\_fp }\OtherTok{\textless{}{-}} \FunctionTok{case\_when}\NormalTok{( }\CommentTok{\# locally{-}saved rasters created from above}
+\NormalTok{                  lc }\SpecialCharTok{==} \StringTok{\textquotesingle{}CGREC\textquotesingle{}} \SpecialCharTok{\textasciitilde{}} \StringTok{\textquotesingle{}./data/RxRasters/TC/CGREC.tiff\textquotesingle{}}\NormalTok{, }
+\NormalTok{                  lc }\SpecialCharTok{==} \StringTok{\textquotesingle{}HREC\textquotesingle{}} \SpecialCharTok{\textasciitilde{}} \StringTok{\textquotesingle{}./data/RxRasters/TC/HREC.tiff\textquotesingle{}}\NormalTok{,}
+\NormalTok{                  lc }\SpecialCharTok{==} \StringTok{\textquotesingle{}Dayton\textquotesingle{}} \SpecialCharTok{\textasciitilde{}} \StringTok{\textquotesingle{}./data/RxRasters/TC/Dayton.tiff\textquotesingle{}}
+\NormalTok{                )}
+\NormalTok{    dnbr\_rast }\OtherTok{\textless{}{-}} \FunctionTok{rast}\NormalTok{(dnbr\_fp)}
+  \CommentTok{\# loop for individual burns}
+    \ControlFlowTok{for}\NormalTok{(b }\ControlFlowTok{in} \DecValTok{1}\SpecialCharTok{:}\FunctionTok{length}\NormalTok{(}\FunctionTok{unique}\NormalTok{(loc}\SpecialCharTok{$}\NormalTok{burn))) \{}
+\NormalTok{      bn }\OtherTok{=} \FunctionTok{unique}\NormalTok{(loc}\SpecialCharTok{$}\NormalTok{burn)[b]}
+      \CommentTok{\#bn = \textquotesingle{}DAY.1.19\textquotesingle{}}
+\NormalTok{      burn }\OtherTok{=} \FunctionTok{filter}\NormalTok{(loc, burn }\SpecialCharTok{==}\NormalTok{ bn)}
+\NormalTok{      date }\OtherTok{=}\NormalTok{ burn}\SpecialCharTok{$}\NormalTok{BurnDate}
+\NormalTok{      dnbr }\OtherTok{\textless{}{-}}\NormalTok{ dnbr\_rast }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{select}\NormalTok{(}\FunctionTok{all\_of}\NormalTok{(date)) }
+      \FunctionTok{names}\NormalTok{(dnbr) }\OtherTok{\textless{}{-}} \StringTok{\textquotesingle{}dNBR\textquotesingle{}}
+          \CommentTok{\# Extract values at points}
+\NormalTok{            terra}\SpecialCharTok{::}\FunctionTok{extract}\NormalTok{(dnbr,}
+\NormalTok{                           burn , }
+                           \AttributeTok{fun =}\NormalTok{ mean, }
+                           \AttributeTok{method =} \StringTok{\textquotesingle{}bilinear\textquotesingle{}}\NormalTok{,}
+                           \AttributeTok{bind =} \ConstantTok{TRUE}\NormalTok{)  }\SpecialCharTok{\%\textgreater{}\%} 
+            \FunctionTok{as\_tibble}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%} 
+              \FunctionTok{select}\NormalTok{(location}\SpecialCharTok{:}\NormalTok{plot, BurnDate, MaxC}\SpecialCharTok{:}\NormalTok{ros, dNBR) }\SpecialCharTok{\%\textgreater{}\%}
+            \FunctionTok{bind\_rows}\NormalTok{(., RxPointSeverity) }\OtherTok{{-}\textgreater{}}\NormalTok{ RxPointSeverity}
+\NormalTok{\}}
+\NormalTok{\}}
+\NormalTok{RxPointSeverity }\SpecialCharTok{\%\textless{}\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}\AttributeTok{zone =} \FunctionTok{ifelse}\NormalTok{(location }\SpecialCharTok{==} \StringTok{\textquotesingle{}CGREC\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}East\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}West\textquotesingle{}}\NormalTok{)) }
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{Pasture-level Rx fires}\label{pasture-level-rx-fires}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Load Rx fire data}
+\NormalTok{  rx\_perims }\OtherTok{\textless{}{-}} \FunctionTok{read\_sf}\NormalTok{(}\StringTok{\textquotesingle{}./data/SeverityComparison.gpkg\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}rx\_perims\textquotesingle{}}\NormalTok{)}
+
+\NormalTok{  RxPastureSeverity }\OtherTok{\textless{}{-}} \FunctionTok{tibble}\NormalTok{() }
+  
+  \ControlFlowTok{for}\NormalTok{(b }\ControlFlowTok{in} \DecValTok{1}\SpecialCharTok{:}\FunctionTok{length}\NormalTok{(}\FunctionTok{unique}\NormalTok{(rx\_perims}\SpecialCharTok{$}\NormalTok{burn))) \{}
+\NormalTok{    bn }\OtherTok{=} \FunctionTok{unique}\NormalTok{(rx\_perims}\SpecialCharTok{$}\NormalTok{burn)[b]}
+\NormalTok{    burn }\OtherTok{=} \FunctionTok{filter}\NormalTok{(rx\_perims, burn }\SpecialCharTok{==}\NormalTok{ bn)}
+\NormalTok{    lc }\OtherTok{=}\NormalTok{ burn}\SpecialCharTok{$}\NormalTok{location}
+    \CommentTok{\# Map to and load severity raster for the location}
+\NormalTok{      dnbr\_fp }\OtherTok{\textless{}{-}} \FunctionTok{case\_when}\NormalTok{( }\CommentTok{\# locally{-}saved rasters created from above}
+\NormalTok{                    lc }\SpecialCharTok{==} \StringTok{\textquotesingle{}CGREC\textquotesingle{}} \SpecialCharTok{\textasciitilde{}} \StringTok{\textquotesingle{}./data/RxRasters/Pasture/CGREC.tiff\textquotesingle{}}\NormalTok{, }
+\NormalTok{                    lc }\SpecialCharTok{==} \StringTok{\textquotesingle{}HREC\textquotesingle{}} \SpecialCharTok{\textasciitilde{}} \StringTok{\textquotesingle{}./data/RxRasters/Pasture/HREC.tiff\textquotesingle{}}\NormalTok{,}
+\NormalTok{                    lc }\SpecialCharTok{==} \StringTok{\textquotesingle{}Dayton\textquotesingle{}} \SpecialCharTok{\textasciitilde{}} \StringTok{\textquotesingle{}./data/RxRasters/Pasture/Dayton.tiff\textquotesingle{}}
+\NormalTok{                  )}
+\NormalTok{      dnbr\_rast }\OtherTok{\textless{}{-}} \FunctionTok{rast}\NormalTok{(dnbr\_fp)}
+    \CommentTok{\#}
+    \CommentTok{\# process the burn}
+    \CommentTok{\#}
+\NormalTok{      dp }\OtherTok{=}\NormalTok{ burn}\SpecialCharTok{$}\NormalTok{DeltaPair}
+\NormalTok{      dnbr }\OtherTok{\textless{}{-}}\NormalTok{ dnbr\_rast }\SpecialCharTok{\%\textgreater{}\%} 
+                \FunctionTok{select}\NormalTok{(}\FunctionTok{all\_of}\NormalTok{(dp)) }\SpecialCharTok{\%\textgreater{}\%}
+                \FunctionTok{crop}\NormalTok{(burn)}
+      \FunctionTok{names}\NormalTok{(dnbr) }\OtherTok{\textless{}{-}} \StringTok{\textquotesingle{}dNBR\textquotesingle{}}
+    \CommentTok{\# create sample points }
+\NormalTok{      buff }\OtherTok{\textless{}{-}}\NormalTok{ burn }\SpecialCharTok{\%\textgreater{}\%} 
+                \FunctionTok{st\_transform}\NormalTok{(albersEAC) }\SpecialCharTok{\%\textgreater{}\%} 
+                \FunctionTok{st\_buffer}\NormalTok{(}\SpecialCharTok{{-}}\DecValTok{20}\NormalTok{)}
+\NormalTok{      pts }\OtherTok{\textless{}{-}}\NormalTok{  buff }\SpecialCharTok{\%\textgreater{}\%}
+                \FunctionTok{st\_make\_grid}\NormalTok{(}\AttributeTok{cellsize =} \FunctionTok{c}\NormalTok{(}\FunctionTok{diff}\NormalTok{(}\FunctionTok{st\_bbox}\NormalTok{(.)[}\FunctionTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{, }\DecValTok{3}\NormalTok{)]), }
+                                          \FunctionTok{diff}\NormalTok{(}\FunctionTok{st\_bbox}\NormalTok{(.)[}\FunctionTok{c}\NormalTok{(}\DecValTok{2}\NormalTok{, }\DecValTok{4}\NormalTok{)]))}\SpecialCharTok{/} \DecValTok{10}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%} 
+                \FunctionTok{st\_centroid}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
+                \FunctionTok{st\_intersection}\NormalTok{(buff) }\SpecialCharTok{\%\textgreater{}\%}
+                \FunctionTok{st\_transform}\NormalTok{(}\DecValTok{4326}\NormalTok{)}
+    \CommentTok{\# Extract dNBR values at points}
+\NormalTok{      terra}\SpecialCharTok{::}\FunctionTok{extract}\NormalTok{(dnbr,}
+\NormalTok{                     pts }\SpecialCharTok{\%\textgreater{}\%}
+                       \FunctionTok{vect}\NormalTok{() , }
+                     \AttributeTok{fun =}\NormalTok{ mean, }
+                     \AttributeTok{method =} \StringTok{\textquotesingle{}bilinear\textquotesingle{}}\NormalTok{,}
+                     \AttributeTok{bind =} \ConstantTok{TRUE}\NormalTok{)  }\SpecialCharTok{\%\textgreater{}\%} 
+      \FunctionTok{as\_tibble}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{tibble}\NormalTok{(}\AttributeTok{location =}\NormalTok{ lc, }
+             \AttributeTok{burn =}\NormalTok{ bn, }
+\NormalTok{             . ) }\SpecialCharTok{\%\textgreater{}\%} 
+      \FunctionTok{bind\_rows}\NormalTok{(., RxPastureSeverity) }\OtherTok{{-}\textgreater{}}\NormalTok{ RxPastureSeverity}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{Combine wildfire and Rx burn severity
+data}\label{combine-wildfire-and-rx-burn-severity-data}
+
+Wildfire severity extracted in same script that calculated it, above.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Load data }
+   \FunctionTok{load}\NormalTok{(}\StringTok{\textquotesingle{}./data/RxPastureSeverity.Rdata\textquotesingle{}}\NormalTok{) }
+   \FunctionTok{load}\NormalTok{(}\StringTok{\textquotesingle{}./data/WfSeverityLM.Rdata\textquotesingle{}}\NormalTok{) }\CommentTok{\# wildfire burn indices}
+\NormalTok{   wf\_sf }\OtherTok{\textless{}{-}} \FunctionTok{read\_sf}\NormalTok{(}\StringTok{\textquotesingle{}./data/SeverityComparison.gpkg\textquotesingle{}}\NormalTok{, }
+                    \StringTok{\textquotesingle{}GreatPlainsModifiedWF\textquotesingle{}}\NormalTok{) }\CommentTok{\# Perimeter data}
+
+\NormalTok{BurnSeverityData }\OtherTok{\textless{}{-}} 
+  \FunctionTok{bind\_rows}\NormalTok{(}
+    \CommentTok{\# Rx fires}
+\NormalTok{    RxPastureSeverity }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{rename}\NormalTok{(}\AttributeTok{FireCode =}\NormalTok{ burn) }\SpecialCharTok{\%\textgreater{}\%}
+        \FunctionTok{filter}\NormalTok{(}\FunctionTok{complete.cases}\NormalTok{(.) ) }\SpecialCharTok{\%\textgreater{}\%}
+        \FunctionTok{group\_by}\NormalTok{(zone, location, FireCode) }\SpecialCharTok{\%\textgreater{}\%}
+        \FunctionTok{summarise\_at}\NormalTok{(}\AttributeTok{.vars =} \FunctionTok{vars}\NormalTok{(dNBR),}
+                     \AttributeTok{.funs =} \FunctionTok{c}\NormalTok{(}\AttributeTok{Mean\_dNBR=}\StringTok{"mean"}\NormalTok{, }
+                               \AttributeTok{SEM =} \ControlFlowTok{function}\NormalTok{(x) \{}\FunctionTok{sd}\NormalTok{(x)}\SpecialCharTok{/}\FunctionTok{sqrt}\NormalTok{(}\FunctionTok{n}\NormalTok{()) \} )) }\SpecialCharTok{\%\textgreater{}\%}
+        \FunctionTok{ungroup}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
+        \FunctionTok{mutate}\NormalTok{(}\AttributeTok{type =} \StringTok{\textquotesingle{}Rx\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+         \FunctionTok{select}\NormalTok{(type, zone, FireCode}\SpecialCharTok{:}\NormalTok{SEM) , }
+    \CommentTok{\# Wildfires}
+\NormalTok{      wf\_sf }\SpecialCharTok{\%\textgreater{}\%}
+        \FunctionTok{as\_tibble}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
+        \FunctionTok{select}\NormalTok{(FireCode, L3) }\SpecialCharTok{\%\textgreater{}\%}
+      \FunctionTok{right\_join}\NormalTok{(}\AttributeTok{by =} \StringTok{\textquotesingle{}FireCode\textquotesingle{}}\NormalTok{, }
+\NormalTok{        WfSeverityLM }\SpecialCharTok{\%\textgreater{}\%}
+          \FunctionTok{group\_by}\NormalTok{(FireCode) }\SpecialCharTok{\%\textgreater{}\%}
+          \FunctionTok{summarise\_at}\NormalTok{(}\AttributeTok{.vars =} \FunctionTok{vars}\NormalTok{(dNBR),}
+                       \AttributeTok{.funs =} \FunctionTok{c}\NormalTok{(}\AttributeTok{Mean\_dNBR=}\StringTok{"mean"}\NormalTok{, }
+                                 \AttributeTok{SEM =} \ControlFlowTok{function}\NormalTok{(x) \{}\FunctionTok{sd}\NormalTok{(x)}\SpecialCharTok{/}\FunctionTok{sqrt}\NormalTok{(}\FunctionTok{n}\NormalTok{()) \} )) ) }\SpecialCharTok{\%\textgreater{}\%}
+         \FunctionTok{mutate}\NormalTok{(}\AttributeTok{type =} \StringTok{\textquotesingle{}Wildfire\textquotesingle{}}\NormalTok{, }
+                \AttributeTok{zone =} \FunctionTok{case\_when}\NormalTok{(}
+\NormalTok{                  FireCode }\SpecialCharTok{\%in\%} \FunctionTok{c}\NormalTok{(}\StringTok{\textquotesingle{}Swather\_2021\textquotesingle{}}\NormalTok{,}\StringTok{\textquotesingle{}Hwy31101STWest\_2022\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}CB00121\_2021\textquotesingle{}}\NormalTok{, }
+                                  \StringTok{\textquotesingle{}CoalSeamWest\_2021\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}1806HunkpapaCreek\_2021\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\textasciitilde{}}
+                    \StringTok{\textquotesingle{}East\textquotesingle{}}\NormalTok{, }
+\NormalTok{                  L3 }\SpecialCharTok{==} \StringTok{\textquotesingle{}Northwestern Great Plains\textquotesingle{}} \SpecialCharTok{\textasciitilde{}} \StringTok{\textquotesingle{}West\textquotesingle{}}\NormalTok{,}
+\NormalTok{                  L3 }\SpecialCharTok{==} \StringTok{\textquotesingle{}Northwestern Glaciated Plains\textquotesingle{}} \SpecialCharTok{\textasciitilde{}} \StringTok{\textquotesingle{}West\textquotesingle{}}\NormalTok{)) }\SpecialCharTok{\%\textgreater{}\%} 
+      \FunctionTok{select}\NormalTok{(}\SpecialCharTok{{-}}\NormalTok{L3) ) }
 \end{Highlighting}
 \end{Shaded}
 
@@ -531,27 +1250,27 @@ data}\label{space-based-vs.-field-based-data}
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\NormalTok{PlotBurnIndices }\OtherTok{\textless{}{-}}\NormalTok{ readxl}\SpecialCharTok{::}\FunctionTok{read\_xlsx}\NormalTok{(}\StringTok{\textquotesingle{}SeverityComparisonData.xlsx\textquotesingle{}}\NormalTok{, }
-                                     \StringTok{\textquotesingle{}PlotBurnIndices\textquotesingle{}}\NormalTok{)}
-\CommentTok{\# Testing drivers of burn severity}
-  \CommentTok{\# Canopy temperature}
-\NormalTok{    mc\_0 }\OtherTok{\textless{}{-}}\NormalTok{ lme4}\SpecialCharTok{::}\FunctionTok{lmer}\NormalTok{(dNBR }\SpecialCharTok{\textasciitilde{}} \DecValTok{1} \SpecialCharTok{+}\NormalTok{ (}\DecValTok{1}\SpecialCharTok{|}\NormalTok{location}\SpecialCharTok{/}\NormalTok{burn), }
-                       \AttributeTok{REML =} \ConstantTok{FALSE}\NormalTok{, }\AttributeTok{data =}\NormalTok{ PlotBurnIndices)}
-\NormalTok{    mc\_1 }\OtherTok{\textless{}{-}}\NormalTok{ lme4}\SpecialCharTok{::}\FunctionTok{lmer}\NormalTok{(dNBR }\SpecialCharTok{\textasciitilde{}}\NormalTok{ MaxC }\SpecialCharTok{+}\NormalTok{ (}\DecValTok{1}\SpecialCharTok{|}\NormalTok{location}\SpecialCharTok{/}\NormalTok{burn), }
-                       \AttributeTok{REML =} \ConstantTok{FALSE}\NormalTok{, }\AttributeTok{data =}\NormalTok{ PlotBurnIndices)}
-\NormalTok{    BurnModels}\SpecialCharTok{$}\NormalTok{Sev\_v\_MaxC }\OtherTok{\textless{}{-}} \FunctionTok{anova}\NormalTok{(mc\_0, mc\_1)}
-  \CommentTok{\# Soil surface temperature}
-\NormalTok{    sc\_0 }\OtherTok{\textless{}{-}}\NormalTok{ lme4}\SpecialCharTok{::}\FunctionTok{lmer}\NormalTok{(dNBR }\SpecialCharTok{\textasciitilde{}} \DecValTok{1} \SpecialCharTok{+}\NormalTok{ (}\DecValTok{1}\SpecialCharTok{|}\NormalTok{location}\SpecialCharTok{/}\NormalTok{burn), }\AttributeTok{REML =} \ConstantTok{FALSE}\NormalTok{, }
-                       \AttributeTok{data =} \FunctionTok{filter}\NormalTok{(PlotBurnIndices, }\SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(SoilMaxC) ) )}
-\NormalTok{    sc\_1 }\OtherTok{\textless{}{-}}\NormalTok{ lme4}\SpecialCharTok{::}\FunctionTok{lmer}\NormalTok{(dNBR }\SpecialCharTok{\textasciitilde{}}\NormalTok{ SoilMaxC }\SpecialCharTok{+}\NormalTok{ (}\DecValTok{1}\SpecialCharTok{|}\NormalTok{location}\SpecialCharTok{/}\NormalTok{burn), }\AttributeTok{REML =} \ConstantTok{FALSE}\NormalTok{, }
-                       \AttributeTok{data =} \FunctionTok{filter}\NormalTok{(PlotBurnIndices, }\SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(SoilMaxC)) )}
-\NormalTok{    BurnModels}\SpecialCharTok{$}\NormalTok{Sev\_v\_SoilMaxC }\OtherTok{\textless{}{-}} \FunctionTok{anova}\NormalTok{(sc\_0, sc\_1)}
-  \CommentTok{\# Rate of spread}
-\NormalTok{    rs\_0 }\OtherTok{\textless{}{-}}\NormalTok{ lme4}\SpecialCharTok{::}\FunctionTok{lmer}\NormalTok{(dNBR }\SpecialCharTok{\textasciitilde{}} \DecValTok{1} \SpecialCharTok{+}\NormalTok{ (}\DecValTok{1}\SpecialCharTok{|}\NormalTok{location}\SpecialCharTok{/}\NormalTok{burn), }\AttributeTok{REML =} \ConstantTok{FALSE}\NormalTok{,  }
-                        \AttributeTok{data =} \FunctionTok{filter}\NormalTok{(PlotBurnIndices, }\SpecialCharTok{!} \FunctionTok{is.na}\NormalTok{(ros)) )}
-\NormalTok{    rs\_1 }\OtherTok{\textless{}{-}}\NormalTok{ lme4}\SpecialCharTok{::}\FunctionTok{lmer}\NormalTok{(dNBR }\SpecialCharTok{\textasciitilde{}}\NormalTok{ ros }\SpecialCharTok{+}\NormalTok{ (}\DecValTok{1}\SpecialCharTok{|}\NormalTok{location}\SpecialCharTok{/}\NormalTok{burn), }\AttributeTok{REML =} \ConstantTok{FALSE}\NormalTok{,  }
-                        \AttributeTok{data =} \FunctionTok{filter}\NormalTok{(PlotBurnIndices, }\SpecialCharTok{!} \FunctionTok{is.na}\NormalTok{(ros)) )}
-\NormalTok{    BurnModels}\SpecialCharTok{$}\NormalTok{Sev\_v\_ROS }\OtherTok{\textless{}{-}} \FunctionTok{anova}\NormalTok{(rs\_0, rs\_1)}
+\NormalTok{sev\_dat }\OtherTok{\textless{}{-}}\NormalTok{ readxl}\SpecialCharTok{::}\FunctionTok{read\_xlsx}\NormalTok{(}\StringTok{\textquotesingle{}SeverityComparisonData.xlsx\textquotesingle{}}\NormalTok{, }
+                             \StringTok{\textquotesingle{}PlotBurnIndices\textquotesingle{}}\NormalTok{)}
+\CommentTok{\# Canopy temperature}
+\NormalTok{  mc }\OtherTok{\textless{}{-}}\NormalTok{ lme4}\SpecialCharTok{::}\FunctionTok{lmer}\NormalTok{(dNBR }\SpecialCharTok{\textasciitilde{}}\NormalTok{ MaxC }\SpecialCharTok{+}\NormalTok{ zone }\SpecialCharTok{+}\NormalTok{ (}\DecValTok{1}\SpecialCharTok{|}\NormalTok{location}\SpecialCharTok{/}\NormalTok{burn), }\AttributeTok{REML =} \ConstantTok{FALSE}\NormalTok{, }\AttributeTok{data =}\NormalTok{ sev\_dat )}
+
+\NormalTok{    car}\SpecialCharTok{::}\FunctionTok{Anova}\NormalTok{(mc)}
+\NormalTok{    MuMIn}\SpecialCharTok{::}\FunctionTok{r.squaredGLMM}\NormalTok{(mc)}
+
+\CommentTok{\# Soil surface temperature}
+\NormalTok{  sc }\OtherTok{\textless{}{-}}\NormalTok{ lme4}\SpecialCharTok{::}\FunctionTok{lmer}\NormalTok{(dNBR }\SpecialCharTok{\textasciitilde{}}\NormalTok{ SoilMaxC }\SpecialCharTok{+}\NormalTok{ zone }\SpecialCharTok{+}\NormalTok{ (}\DecValTok{1}\SpecialCharTok{|}\NormalTok{location}\SpecialCharTok{/}\NormalTok{burn), }\AttributeTok{REML =} \ConstantTok{FALSE}\NormalTok{, }
+                     \AttributeTok{data =} \FunctionTok{filter}\NormalTok{(sev\_dat, }\SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(SoilMaxC)) )}
+  
+\NormalTok{  car}\SpecialCharTok{::}\FunctionTok{Anova}\NormalTok{(sc)}
+\NormalTok{  MuMIn}\SpecialCharTok{::}\FunctionTok{r.squaredGLMM}\NormalTok{(sc)}
+
+\CommentTok{\# Rate of spread}
+\NormalTok{  rs }\OtherTok{\textless{}{-}}\NormalTok{ lme4}\SpecialCharTok{::}\FunctionTok{lmer}\NormalTok{(dNBR }\SpecialCharTok{\textasciitilde{}}\NormalTok{ ros }\SpecialCharTok{+}\NormalTok{ zone }\SpecialCharTok{+}\NormalTok{ (}\DecValTok{1}\SpecialCharTok{|}\NormalTok{location}\SpecialCharTok{/}\NormalTok{burn), }\AttributeTok{REML =} \ConstantTok{FALSE}\NormalTok{,  }
+                     \AttributeTok{data =} \FunctionTok{filter}\NormalTok{(sev\_dat, }\SpecialCharTok{!} \FunctionTok{is.na}\NormalTok{(ros)) )}
+  
+\NormalTok{  car}\SpecialCharTok{::}\FunctionTok{Anova}\NormalTok{(rs)}
+\NormalTok{  MuMIn}\SpecialCharTok{::}\FunctionTok{r.squaredGLMM}\NormalTok{(rs)}
 \end{Highlighting}
 \end{Shaded}
 
@@ -568,10 +1287,10 @@ data}\label{space-based-vs.-field-based-data}
 \NormalTok{    sev\_int }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(dNBR }\SpecialCharTok{\textasciitilde{}}\NormalTok{ type}\SpecialCharTok{*}\NormalTok{zone, }\AttributeTok{data =}\NormalTok{ reg\_dat)}
       
     \FunctionTok{anova}\NormalTok{(sev\_0, sev\_int)}
-      
-\NormalTok{    BurnModels}\SpecialCharTok{$}\NormalTok{type\_comp }\OtherTok{\textless{}{-}}\NormalTok{ emmeans}\SpecialCharTok{::}\FunctionTok{emmeans}\NormalTok{(sev\_int, }\SpecialCharTok{\textasciitilde{}}\NormalTok{  type }\SpecialCharTok{|}\NormalTok{ zone) }
+    
+    \FunctionTok{summary}\NormalTok{(sev\_int)}\SpecialCharTok{$}\NormalTok{r.squared }
 
-\NormalTok{    emmeans}\SpecialCharTok{::}\FunctionTok{joint\_tests}\NormalTok{(BurnModels}\SpecialCharTok{$}\NormalTok{type\_comp, }\AttributeTok{by =} \StringTok{\textquotesingle{}zone\textquotesingle{}}\NormalTok{) }
+\NormalTok{    emmeans}\SpecialCharTok{::}\FunctionTok{joint\_tests}\NormalTok{(type\_comp, }\AttributeTok{by =} \StringTok{\textquotesingle{}zone\textquotesingle{}}\NormalTok{) }
 \end{Highlighting}
 \end{Shaded}
 
